@@ -1,32 +1,33 @@
 <template>
-<div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Описание</th>
-              <th>Категория</th>
-              <th>Дата</th>
-              <th>Сумма</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="expense in expenses" :key="expense.id">
-              <td>{{ expense.description }}</td>
-              <td>{{ expense.category }}</td>
-              <td>{{ expense.date }}</td>
-              <td>{{ expense.amount }} ₽</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Описание</th>
+          <th>Категория</th>
+          <th>Дата</th>
+          <th>Сумма</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="expense in expenses" :key="expense.id">
+          <td>{{ expense.description }}</td>
+          <td>{{ expense.category }}</td>
+          <td>{{ expense.date }}</td>
+          <td>{{ expense.amount }} ₽</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { mockExpenses } from '@/mocks/expenses.js'; 
+import { computed } from 'vue';
+import { expensesStore } from '@/store/store.js';
 
-const expenses = ref(mockExpenses);
+const expenses = computed(() => expensesStore.getExpenses());
 </script>
+
 
 <style lang="scss" scoped>
 .table-container {

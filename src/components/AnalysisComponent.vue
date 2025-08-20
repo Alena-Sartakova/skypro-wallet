@@ -21,11 +21,11 @@
 </template>
 
 <script setup>
+import { expensesStore } from "@/store/store";
 import CalendarComponent from "./CalendarComponent.vue";
 import ChartComponent from "./ChartComponent.vue";
+import { computed, ref } from "vue";
 
-import { ref, computed } from "vue";
-import { mockExpenses } from "@/mocks/expenses";
 
 const categories = [
   "Еда",
@@ -38,6 +38,8 @@ const categories = [
 
 const selectedStartDate = ref(null);
 const selectedEndDate = ref(null);
+
+const expenses = computed(() => expensesStore.getExpenses());
 
 const formattedStartDate = computed(
   () =>
@@ -58,7 +60,7 @@ const formattedEndDate = computed(
 const filteredExpenses = computed(() => {
   if (!selectedStartDate.value || !selectedEndDate.value) return [];
 
-  return mockExpenses.filter((expense) => {
+  return expenses.value.filter((expense) => {
     const expenseDate = new Date(expense.date);
     return (
       expenseDate >= selectedStartDate.value &&
@@ -69,7 +71,6 @@ const filteredExpenses = computed(() => {
 
 const handleDateSelection = (start, end) => {
   try {
-    // Проверка типа данных
     if (start && !(start instanceof Date)) {
       throw new Error("Invalid start date type");
     }
@@ -77,7 +78,6 @@ const handleDateSelection = (start, end) => {
       throw new Error("Invalid end date type");
     }
 
-    // Обновление только при валидных значениях
     selectedStartDate.value = start || null;
     selectedEndDate.value = end || null;
   } catch (error) {

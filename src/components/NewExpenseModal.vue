@@ -53,9 +53,8 @@
 </template>
 
 <script setup>
+import { expensesStore } from "@/store/store";
 import { ref, defineAsyncComponent } from "vue";
-
-const emit = defineEmits(["submit"]);
 
 // Инициализация данных формы
 const formData = ref({
@@ -106,15 +105,25 @@ const validateForm = () => {
 
 // Обработчик отправки формы
 const handleSubmit = () => {
-  if (!validateForm()) return;
+  if (!validateForm()) {
+    alert("Пожалуйста, заполните все обязательные поля корректно");
+    return;
+  }
 
-  const payload = {
-    ...formData.value,
-    amount: Number(formData.value.amount),
-  };
+  try {
+    expensesStore.addExpense({
+      description: formData.value.description.trim(),
+      category: formData.value.category,
+      date: formData.value.date,
+      amount: Number(formData.value.amount),
+    });
 
-  emit("submit", payload);
-  resetForm();
+    resetForm();
+    alert("Расход успешно добавлен!");
+  } catch (error) {
+    console.error("Ошибка при добавлении расхода:", error);
+    alert("Произошла ошибка при сохранении расхода");
+  }
 };
 
 // Сброс формы
@@ -173,9 +182,9 @@ const resetForm = () => {
 
 .category-grid {
   display: flex;
-  flex-wrap: wrap; 
-  gap: 12px; 
-  justify-content: flex-start; 
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
 }
 
 .category-card {
@@ -186,8 +195,8 @@ const resetForm = () => {
   cursor: pointer;
   transition: all 0.2s;
   border: 2px solid transparent;
-  margin-right: 12px; 
-  margin-bottom: 12px; 
+  margin-right: 12px;
+  margin-bottom: 12px;
   height: auto;
   &:hover {
     border-radius: 15px;
@@ -202,8 +211,8 @@ const resetForm = () => {
 
   &.active {
     border-radius: 45px;
-    background: transparent; 
-    border-color: #7334ea; 
+    background: transparent;
+    border-color: #7334ea;
     background: rgba(115, 52, 234, 0.1);
     box-shadow: none;
 
@@ -242,20 +251,18 @@ const resetForm = () => {
   transition: 0.2s;
 }
 
-
-
 .category-card.active {
-  box-shadow: 0 0 4px rgba(115, 52, 234, 0.5); 
+  box-shadow: 0 0 4px rgba(115, 52, 234, 0.5);
 }
 
 .form-row {
-  display: block; 
+  display: block;
 }
 
 .submit-button {
   width: 100%;
   padding: 10px 20px;
-  background: #7334ea; 
+  background: #7334ea;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -266,10 +273,9 @@ const resetForm = () => {
 
   &:hover,
   &:active {
-    background: darken(#7334ea, 15%); 
+    background: darken(#7334ea, 15%);
   }
 }
-
 
 input,
 .category-card,

@@ -9,7 +9,7 @@
         <router-link
           to="/expenses"
           class="nav-link"
-          :class="{ active: $route.path === '/expenses' }"
+          :exact-active-class="'active'"
         >
           Мои расходы
         </router-link>
@@ -17,26 +17,63 @@
         <router-link
           to="/analysis"
           class="nav-link"
-          :class="{ active: $route.path === '/analysis' }"
+          :exact-active-class="'active'"
         >
           Анализ расходов
         </router-link>
       </nav>
 
-      <button class="logout-btn" @click="showLogoutMessage">Выйти</button>
+      <button 
+        class="logout-btn" 
+        @click="handleLogout"
+        :disabled="isLoggingOut"
+      >
+        {{ isLoggingOut ? 'Выход...' : 'Выйти' }}
+      </button>
     </div>
+    <transition name="fade">
+    <div v-if="logoutError" class="error-message">
+      {{ logoutError }}
+    </div>
+  </transition>
   </header>
 </template>
 
 <script setup>
-const showLogoutMessage = () => {
-  // Заглушка для демонстрации
-  alert("Функция выхода будет реализована после подключения API");
+import { ref } from 'vue';
+import { authStore } from "@/store/authStore";
+import { useRouter } from 'vue-router';
 
-  // Для тестирования перехода можно раскомментировать:
-  // router.push('/login');
+const router = useRouter();
+const isLoggingOut = ref(false);
+const logoutError = ref(null);
+
+const handleLogout = async () => {
+  try {
+    isLoggingOut.value = true;
+    logoutError.value = null;
+    
+    // 1. Вызываем выход
+    await authStore.logout();
+
+    // 2. Принудительная проверка
+    if (router.currentRoute.value.path !== '/signin') {
+      router.replace('/signin').catch(() => {
+        window.location.href = '/signin';
+      });
+    }
+  } catch (error) {
+    console.error("Ошибка при выходе:", error);
+    logoutError.value = 'Не удалось выйти. Попробуйте еще раз.';
+    setTimeout(() => {
+      logoutError.value = null;
+    }, 5000);
+  } finally {
+    isLoggingOut.value = false;
+  }
 };
 </script>
+
 
 <style lang="scss" scoped>
 .header {
@@ -112,5 +149,22 @@ const showLogoutMessage = () => {
   &:hover {
     color: #6d28d9;
   }
+}
+.error-message {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 15px;
+  background: #ffebee;
+  color: #b71c1c;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s;
+}
+.fade-enter, .fade-leave-to {
+  opacity: 0;
 }
 </style>

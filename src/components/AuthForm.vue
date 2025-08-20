@@ -1,32 +1,29 @@
 <template>
   <div class="login-container">
-    <form @submit.prevent="props.isSignUp ? register() : login()">
-      <h2>{{ props.isSignUp ? "Регистрация" : "Вход" }}</h2>
+    <form @submit.prevent="handleLogin">
+      <h2>Вход</h2>
 
-      <input v-if="props.isSignUp" v-model="name" placeholder="Имя" required />
-
-      <input v-model="username" placeholder="Логин" required />
+      <input v-model="username" placeholder="Email" required />
 
       <input type="password" v-model="password" placeholder="Пароль" required />
 
-      <button type="submit">
-        {{ props.isSignUp ? "Зарегистрироваться" : "Войти" }}
+      <button type="submit" :disabled="authStore.state.value.isLoading">
+        <span v-if="!authStore.state.value.isLoading"> Войти </span>
+        <span v-else>Обработка...</span>
       </button>
 
       <div class="form-footer">
-        <p v-if="error" class="error">{{ error }}</p>
-      </div>
-      <div v-show="!isSignUp" class="modal__form-group">
-        <p>Нужно зарегистрироваться?</p>
-        <RouterLink to="/signup" class="modal__link">
-          Регистрируйтесь здесь
-        </RouterLink>
+        <p
+          v-if="authStore.state.value.error"
+          class="error"
+          v-html="formattedError"
+        ></p>
       </div>
 
-      <div v-show="isSignUp" class="modal__form-group">
-        <p>Уже есть аккаунт?</p>
-        <RouterLink to="/signin" class="modal__link">
-          Войдите здесь
+      <div class="modal__form-group">
+        <p>Нет аккаунта?</p>
+        <RouterLink to="/signup" class="modal__link">
+          Зарегистрироваться
         </RouterLink>
       </div>
     </form>
@@ -34,45 +31,44 @@
 </template>
 
 <script setup>
-import { ref, defineProps } from "vue";
-import { RouterLink } from "vue-router";
+import { authStore } from "@/store/authStore";
+import { computed, ref } from "vue";
+import { RouterLink, useRouter } from "vue-router";
 
-const props = defineProps({
-  isSignUp: {
-    type: Boolean,
-    required: true, // Обязательный пропс без значения по умолчанию
-  },
-});
-
-const name = ref("");
+const router = useRouter();
 const username = ref("");
 const password = ref("");
-const error = ref("");
 
-const login = () => {
-  error.value = "";
-  if (!username.value || !password.value) {
-    error.value = "Пожалуйста, заполните все поля";
-    return;
+const handleLogin = async () => {
+  try {
+    const { success } = await authStore.login({
+      email: username.value,
+      password: password.value
+    });
+    
+    if (success) {
+      router.push('/expenses');
+    }
+    password.value = ""; // Всегда очищаем пароль
+  } catch (error) {
+    console.error("Ошибка входа:", error);
+    password.value = "";
   }
-  console.log("Логин:", username.value, "Пароль:", password.value);
 };
 
-const register = () => {
-  error.value = "";
-  if (!name.value || !username.value || !password.value) {
-    error.value = "Пожалуйста, заполните все поля";
-    return;
-  }
-  console.log(
-    "Имя:",
-    name.value,
-    "Логин:",
-    username.value,
-    "Пароль:",
-    password.value
-  );
-};
+const formattedError = computed(() => {
+  if (!authStore.state.value.error) return '';
+  
+  // Обрабатываем разные форматы ошибок
+  const messages = authStore.state.value.error.messages || 
+                   [authStore.state.value.error];
+  
+  return messages
+    .flatMap(msg => msg.split('\n')) // Разбиваем сообщения с переносами
+    .filter(msg => msg.trim())       // Убираем пустые строки
+    .join('<br>');                   // Объединяем с HTML-переносами
+});
+
 </script>
 
 <style lang="scss" scoped>
@@ -94,7 +90,7 @@ form {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   background: white;
   box-sizing: border-box;
-  
+
   h2 {
     text-align: center;
     margin-bottom: 30px;
@@ -120,7 +116,7 @@ button {
   color: white;
   border: none;
   margin-bottom: 20px;
-  
+
   &:hover {
     background-color: #4a008f;
   }
@@ -226,7 +222,7 @@ input:focus {
   color: #6a11cb;
   text-decoration: none;
   transition: color 0.3s;
-  
+
   &:hover {
     text-decoration: underline;
     color: #4a008f;
