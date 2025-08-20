@@ -69,65 +69,33 @@ export const authStore = {
     error: null
   }),
 
-async authAction(action, credentials) {
-  try {
-    console.log(`--- Начало процесса ${action === 'login' ? 'входа' : 'регистрации'} ---`);
-    
-    // Логируем введенные данные (без пароля)
-    console.log('Получены данные:', {
-      ...credentials,
-      password: '*'.repeat(credentials.password.length) // Маскируем пароль
-    });
+  async authAction(action, credentials) {
+    try {
+      this.state.value.isLoading = true;
+      this.state.value.error = null;
 
-    this.state.value.isLoading = true;
-    this.state.value.error = null;
+      const validationErrors = validateCredentials(credentials, action === 'register');
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join('\n'));
+      }
 
-    const validationErrors = validateCredentials(credentials, action === 'register');
-    console.log('Результаты валидации:', validationErrors.length > 0 
-      ? validationErrors 
-      : 'OK');
+      const response = await mockAuthAPI[action](credentials);
 
-    if (validationErrors.length > 0) {
-      throw new Error(validationErrors.join('\n'));
+      if (!response?.user || !response?.token) {
+        throw new Error('Ошибка аутентификации');
+      }
+
+      handleAuthSuccess(this.state, response);
+      return { success: true, user: response.user };
+    } catch (error) {
+      this.state.value.error = {
+        messages: error.message.split('\n')
+      };
+      return { success: false };
+    } finally {
+      this.state.value.isLoading = false;
     }
-
-    const response = await mockAuthAPI[action](credentials);
-    console.log('Ответ от API:', {
-      user: response?.user ? '***' + response.user.email.slice(3) : null,
-      token: response?.token ? '***' + response.token.slice(-8) : null
-    });
-
-    if (!response?.user || !response?.token) {
-      throw new Error('Ошибка аутентификации');
-    }
-
-    handleAuthSuccess(this.state, response);
-    console.log('Обновленное состояние:', {
-      user: response.user.email,
-      token: `***${response.token.slice(-8)}`,
-      isLoading: false
-    });
-
-    return { success: true, user: response.user };
-  } catch (error) {
-    console.error(`Ошибка ${action === 'login' ? 'входа' : 'регистрации'}:`, error.message);
-    console.log('Текущее состояние:', JSON.parse(JSON.stringify(this.state.value)));
-    
-    this.state.value.error = {
-      messages: error.message.split('\n') 
-    };
-    
-    return { success: false };
-  } finally {
-    this.state.value.isLoading = false;
-    console.log('Финальное состояние:', {
-      user: this.state.value.user?.email,
-      isLoading: this.state.value.isLoading,
-      error: this.state.value.error?.messages
-    });
-    console.log(`--- Конец процесса ${action === 'login' ? 'входа' : 'регистрации'} ---\n`);
-  }
-},
+  },
 
   async register(userData) {
     return this.authAction('register', userData);
@@ -137,118 +105,86 @@ async authAction(action, credentials) {
     return this.authAction('login', credentials);
   },
 
-async logout() {
+  async logout() {
     try {
-        console.log('--- Начало процесса выхода ---');
-        
-        // Логируем текущего пользователя перед выходом
-        console.log('Текущий пользователь:', JSON.parse(JSON.stringify(this.state.value.user)));
-        console.log('Данные в localStorage до выхода:', {
-            user: safeLocalStorage.getItem('user'),
-            token: safeLocalStorage.getItem('token')
-        });
+      this.state.value.user = null;
+      this.state.value.token = null;
+      this.state.value.error = null;
 
-        // 1. Сброс состояния
-        this.state.value.user = null;
-        this.state.value.token = null;
-        this.state.value.error = null;
-        console.log('Состояние после сброса:', this.state.value);
+      safeLocalStorage.removeItem('user');
+      safeLocalStorage.removeItem('token');
 
-        // 2. Очистка хранилища
-        safeLocalStorage.removeItem('user');
-        safeLocalStorage.removeItem('token');
-        
-        // Проверка очистки
-        const checkStorage = () => {
-            const storageState = {
-                user: safeLocalStorage.getItem('user'),
-                token: safeLocalStorage.getItem('token')
-            };
-            
-            console.log('Данные в localStorage после выхода:', storageState);
-            
-            if (storageState.user || storageState.token) {
-                console.error('Ошибка: данные не были полностью удалены!');
-            }
-        };
-        
-        checkStorage();
-
-        // 3. Принудительный выход
-        console.log('Перенаправление на страницу входа...');
-        await router.push({
-            path: '/signin',
-            query: { logout: true },
-            replace: true
-        }).catch(() => {
-            console.warn('Ошибка маршрутизации, выполняется hard redirect');
-            window.location.href = '/signin';
-        });
-
-        // 4. Финальная проверка
-        console.log('--- Процесс выхода завершен ---');
-        console.log('Финальное состояние store:', JSON.parse(JSON.stringify(this.state.value)));
-        console.log('Токен валиден?:', await this.isTokenValid());
-
+      await router.push({
+        path: '/signin',
+        query: { logout: true },
+        replace: true
+      }).catch(() => {
+        window.location.href = '/signin';
+      });
     } catch (error) {
-        console.error('Ошибка выхода:', error);
-        console.error('Состояние при ошибке:', {
-            storeState: this.state.value,
-            localStorage: {
-                user: safeLocalStorage.getItem('user'),
-                token: safeLocalStorage.getItem('token')
-            }
-        });
-        throw error;
+      console.error('Ошибка выхода:', error);
+      throw error;
     }
-},
-
+  },
 
   isAuthenticated() {
     return this.isTokenValid();
   },
 
-    async isTokenValid() {
-  try {
-    if (!this.state.value.token) {
-      console.log('Токен отсутствует');
-      return false;
-    }
-
-    // Проверка формата токена
-    const tokenParts = this.state.value.token.split('.');
-    if (tokenParts.length !== 3) {
-      console.error('Неверный формат токена');
+  async isTokenValid() {
+    try {
+      if (!this.state.value.token) {
+        console.log('Токен отсутствует');
+        return false;
+      }
+  
+      // 1. Проверка базовой структуры токена
+      const tokenParts = this.state.value.token.split('.');
+      if (tokenParts.length !== 3) {
+        await this.logout();
+        return false;
+      }
+  
+      // 2. Декодирование payload с обработкой ошибок
+      const base64Payload = tokenParts[1]
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+      
+      let payload;
+      try {
+        payload = JSON.parse(atob(base64Payload));
+      } catch (e) {
+        console.error('Ошибка декодирования payload:', e);
+        await this.logout();
+        return false;
+      }
+  
+      // 3. Проверка наличия обязательных полей
+      if (!payload.exp) {
+        console.error('Токен не содержит дату истечения (exp)');
+        await this.logout();
+        return false;
+      }
+  
+      // 4. Проверка срока действия
+      const now = Date.now();
+      const expiresAt = payload.exp * 1000;
+      
+      if (expiresAt < now) {
+        console.warn('Токен просрочен');
+        await this.logout();
+        return false;
+      }
+  
+      return true;
+    } catch (e) {
+      console.error('Ошибка проверки токена:', e);
       await this.logout();
       return false;
     }
+  },
 
-    // Декодирование с обработкой ошибок
-    const payload = JSON.parse(
-      atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))
-    );
-    
-    // Проверка срока действия
-    const now = Date.now();
-    const expiresAt = payload.exp * 1000;
-    
-    console.log(`Токен действителен до: ${new Date(expiresAt).toLocaleString()}`);
-    
-    if (expiresAt < now) {
-      console.warn('Токен просрочен');
-      await this.logout();
-      return false;
-    }
-    
-    return true;
-  } catch (e) {
-    console.error('Ошибка проверки токена:', e);
-    await this.logout();
-    return false;
-  }
-},
-
-    async init() {
+  async init() {
     try {
       const token = safeLocalStorage.getItem('token');
       if (token) {
@@ -263,6 +199,5 @@ async logout() {
       console.error('Ошибка инициализации:', error);
       this.logout();
     }
-  },
-
+  }
 };

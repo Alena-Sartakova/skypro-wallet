@@ -23,6 +23,11 @@ export const expensesStore = {
     this.saveToLocalStorage();
   },
 
+  deleteExpense(id) {
+    this.state.value = this.state.value.filter(expense => expense.id !== id);
+    this.saveToLocalStorage();
+  },
+
   saveToLocalStorage() {
     localStorage.setItem('expenses', JSON.stringify(this.state.value)); 
   },

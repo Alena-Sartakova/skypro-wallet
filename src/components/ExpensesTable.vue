@@ -7,6 +7,7 @@
           <th>Категория</th>
           <th>Дата</th>
           <th>Сумма</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -15,6 +16,14 @@
           <td>{{ expense.category }}</td>
           <td>{{ expense.date }}</td>
           <td>{{ expense.amount }} ₽</td>
+          <td>
+            <img 
+              src="../assets/icons/bag.svg" 
+              alt="Удалить" 
+              class="delete-icon"
+              @click="handleDeleteExpense(expense.id)"
+            >
+          </td>
         </tr>
       </tbody>
     </table>
@@ -26,6 +35,12 @@ import { computed } from 'vue';
 import { expensesStore } from '@/store/store.js';
 
 const expenses = computed(() => expensesStore.getExpenses());
+
+const handleDeleteExpense = (id) => {
+  if (confirm('Вы уверены, что хотите удалить эту запись?')) {
+    expensesStore.deleteExpense(id);
+  }
+};
 </script>
 
 
@@ -57,6 +72,21 @@ const expenses = computed(() => expensesStore.getExpenses());
       border-bottom: none;
     }
   }
+}
+.delete-icon {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.delete-icon:hover {
+  opacity: 0.7;
+}
+
+th:last-child, td:last-child {
+  width: 40px;
+  text-align: center;
 }
 
 </style>

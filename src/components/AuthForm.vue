@@ -1,29 +1,74 @@
 <template>
   <div class="login-container">
-    <form @submit.prevent="handleLogin">
-      <h2>Вход</h2>
+    <form @submit.prevent="handleSubmit">
+      <h2>{{ isSignUp ? 'Регистрация' : 'Вход' }}</h2>
 
-      <input v-model="username" placeholder="Email" required />
+      <!-- Поле имени только для регистрации -->
+      <input 
+        v-if="isSignUp" 
+        v-model="name" 
+        placeholder="Имя" 
+        required
+        autocomplete="name"
+      />
 
-      <input type="password" v-model="password" placeholder="Пароль" required />
+      <!-- Поле email -->
+      <input 
+        v-model="email" 
+        type="email" 
+        placeholder="Email" 
+        required
+        autocomplete="email"
+      />
 
-      <button type="submit" :disabled="authStore.state.value.isLoading">
-        <span v-if="!authStore.state.value.isLoading"> Войти </span>
-        <span v-else>Обработка...</span>
+      <!-- Поле пароля -->
+      <input 
+        type="password" 
+        v-model="password" 
+        :placeholder="isSignUp ? 'Придумайте пароль' : 'Пароль'"
+        required
+        :autocomplete="isSignUp ? 'new-password' : 'current-password'"
+      />
+
+      <!-- Кнопка отправки -->
+      <button 
+        type="submit" 
+        :disabled="authStore.state.value.isLoading"
+      >
+        {{ isSignUp ? 'Зарегистрироваться' : 'Войти' }}
+        <span v-if="authStore.state.value.isLoading">...</span>
       </button>
 
+      <!-- Отображение ошибок -->
       <div class="form-footer">
-        <p
-          v-if="authStore.state.value.error"
+        <p 
+          v-if="authStore.state.value.error" 
           class="error"
-          v-html="formattedError"
-        ></p>
+        >
+          {{ formattedError }}
+        </p>
       </div>
 
-      <div class="modal__form-group">
-        <p>Нет аккаунта?</p>
-        <RouterLink to="/signup" class="modal__link">
-          Зарегистрироваться
+      <!-- Ссылки для переключения -->
+      <div v-show="!isSignUp" class="modal__form-group">
+        <p>Нужно зарегистрироваться?</p>
+        <RouterLink 
+          to="/signup" 
+          class="modal__link"
+          @click="resetForm"
+        >
+          Регистрируйтесь здесь
+        </RouterLink>
+      </div>
+
+      <div v-show="isSignUp" class="modal__form-group">
+        <p>Уже есть аккаунт?</p>
+        <RouterLink 
+          to="/signin" 
+          class="modal__link"
+          @click="resetForm"
+        >
+          Войдите здесь
         </RouterLink>
       </div>
     </form>
@@ -31,44 +76,75 @@
 </template>
 
 <script setup>
-import { authStore } from "@/store/authStore";
-import { computed, ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { authStore } from '@/store/authStore'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
-const username = ref("");
-const password = ref("");
-
-const handleLogin = async () => {
-  try {
-    const { success } = await authStore.login({
-      email: username.value,
-      password: password.value
-    });
-    
-    if (success) {
-      router.push('/expenses');
-    }
-    password.value = ""; // Всегда очищаем пароль
-  } catch (error) {
-    console.error("Ошибка входа:", error);
-    password.value = "";
+const router = useRouter()
+const props = defineProps({
+  isSignUp: {
+    type: Boolean,
+    required: true
   }
-};
+})
+
+const name = ref('')
+const email = ref('')
+const password = ref('')
+
+const handleSubmit = async () => {
+  try {
+    const credentials = {
+      ...(props.isSignUp && { name: name.value }),
+      email: email.value,
+      password: password.value
+    }
+
+    try {
+      const { success } = props.isSignUp 
+        ? await authStore.register(credentials)
+        : await authStore.login(credentials)
+
+      if (success) {
+        router.push('/expenses')
+        resetForm()
+      }
+    } catch (error) {
+      // Устанавливаем структурированную ошибку
+      authStore.state.value.error = {
+        messages: Array.isArray(error.message) 
+          ? error.message 
+          : [error.message]
+      }
+      password.value = ''
+    }
+  } catch (err) {
+    console.error('Ошибка при отправке:', err)
+    authStore.state.value.error = {
+      messages: ['Произошла ошибка при обработке запроса']
+    }
+  }
+}
+
+const resetForm = () => {
+  name.value = ''
+  email.value = ''
+  password.value = ''
+}
 
 const formattedError = computed(() => {
-  if (!authStore.state.value.error) return '';
+  if (!authStore.state.value.error?.messages) return ''
   
-  // Обрабатываем разные форматы ошибок
-  const messages = authStore.state.value.error.messages || 
-                   [authStore.state.value.error];
-  
-  return messages
-    .flatMap(msg => msg.split('\n')) // Разбиваем сообщения с переносами
-    .filter(msg => msg.trim())       // Убираем пустые строки
-    .join('<br>');                   // Объединяем с HTML-переносами
-});
-
+  // Обрабатываем разные форматы сообщений
+  return authStore.state.value.error.messages
+    .flatMap(msg => {
+      if (typeof msg === 'string') return msg.split('\n')
+      if (msg?.message) return msg.message
+      return String(msg)
+    })
+    .filter(msg => msg.trim())
+    .join('<br>')
+})
 </script>
 
 <style lang="scss" scoped>

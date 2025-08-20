@@ -1,5 +1,5 @@
 export const mockAuthAPI = {
- users: [ // Исправлено на массив
+  users: [
     {
       id: 1,
       name: 'admin',
@@ -11,63 +11,67 @@ export const mockAuthAPI = {
   async login(credentials) {
     await this.delay();
     
-    // Поиск по email
-    const user = this.users.find(u => u.email === credentials.email);
-    if (!user) {
-      throw new Error('Пользователь не найден');
-    }
+    // Поиск пользователя с проверкой пароля
+    const user = this.users.find(u => 
+      u.email === credentials.email && 
+      u.password === credentials.password
+    );
     
-    // Проверка пароля
-    if (user.password !== credentials.password) {
-      throw new Error('Неверный пароль');
-    }
-
+    if (!user) throw new Error('Invalid credentials');
+    
     return {
-      user: { id: user.id, email: user.email },
-      token: this.generateMockToken(user)
+      user: { id: user.id, email: user.email, name: user.name },
+      token: this.generateValidJWT(user)
     };
   },
-
 
   async register(userData) {
     await this.delay();
     
-    // Проверяем уникальность email
-    const exists = this.users.some(u => u.email === userData.email);
-    if (exists) {
-      throw new Error('Пользователь с таким email уже существует');
+    // Проверка уникальности email
+    if (this.users.some(u => u.email === userData.email)) {
+      throw new Error('Email уже используется');
     }
-    
-    // Проверяем минимальную длину пароля
-    if (userData.password.length < 6) {
-      throw new Error('Пароль должен быть не менее 6 символов');
-    }
-    
+
     const newUser = {
       id: Date.now(),
-      name: userData.name,
-      email: userData.email,
-      password: userData.password
+      ...userData,
+      created: new Date().toISOString()
     };
     
     this.users.push(newUser);
     
     return {
-      user: { id: newUser.id, name: newUser.name, email: newUser.email },
-      token: this.generateMockToken(newUser)
+      user: { id: newUser.id, ...newUser },
+      token: this.generateValidJWT(newUser)
     };
   },
 
-  generateMockToken(user) {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const payload = btoa(JSON.stringify({
-      userId: user.id,
-      exp: Date.now() + 3600 * 1000 // Через 1 час
-    }));
-    return `${header}.${payload}.mock_signature`;
+  generateValidJWT(user) {
+    // Генерация валидного JWT формата
+    const header = this.base64Encode({
+      alg: 'HS256',
+      typ: 'JWT'
+    });
+    
+    const payload = this.base64Encode({
+      sub: user.id,
+      name: user.name,
+      email: user.email,
+      exp: Math.floor(Date.now() / 1000) + 3600 // 1 час
+    });
+    
+    return `${header}.${payload}.MOCK_SIGNATURE`;
+  },
+
+  base64Encode(obj) {
+    return btoa(JSON.stringify(obj))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   },
 
   delay() {
-    return new Promise(resolve => setTimeout(resolve, 1000));
+    return new Promise(resolve => setTimeout(resolve, 500));
   }
 };
