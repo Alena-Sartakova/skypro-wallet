@@ -93,23 +93,41 @@ const handleDateSelection = (start, end) => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 30px;
+
+  @media (max-width: 768px) {
+    padding: 20px 15px;
+  }
 }
 
 h1 {
   font-size: 28px;
   color: #2d3748;
   margin-bottom: 30px;
+
+  @media (max-width: 480px) {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
 }
 
 .content-wrapper {
   display: flex;
   gap: 30px;
   align-items: flex-start;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 40px;
+  }
 }
 
 h2 {
   font-size: 20px;
   color: #2d3748;
   margin-bottom: 20px;
+
+  @media (max-width: 480px) {
+    font-size: 18px;
+  }
 }
 </style>

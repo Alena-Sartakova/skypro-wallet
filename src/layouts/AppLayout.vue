@@ -22,5 +22,37 @@ import HeaderComponent from "@/components/HeaderComponent.vue";
 .content {
   flex: 1;
   padding: 20px;
+
+  @media (max-width: 768px) {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 992px) {
+  .layout {
+    background-color: #e0e0e0;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .content {
+    width: 100%;
+    max-width: 600px;
+  }
+}
+
+@media (max-width: 480px) {
+  .layout {
+    padding: 10px;
+  }
+
+  .content {
+    padding: 10px;
+  }
 }
 </style>

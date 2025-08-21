@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { mockAuthAPI } from '@/mocks/mockAuthAPI';
+import http from '@/api/http';
 import router from '@/routes';
 
 const safeLocalStorage = {
@@ -27,39 +27,29 @@ const safeLocalStorage = {
   }
 };
 
-const handleAuthSuccess = (storeState, response) => {
-  storeState.value.user = response.user;
-  storeState.value.token = response.token;
-  safeLocalStorage.setItem('user', JSON.stringify(response.user));
-  safeLocalStorage.setItem('token', response.token);
+const handleAuthSuccess = (storeState, responseData) => {
+  const { user, token } = responseData;
+  storeState.value.user = user;
+  storeState.value.token = token;
+  safeLocalStorage.setItem('user', JSON.stringify(user));
+  safeLocalStorage.setItem('token', token);
 };
 
-const validateCredentials = (credentials, isRegistration = false) => {
+const validateCredentials = (credentials = false) => {
   const errors = [];
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!credentials.email?.trim()) {
-    errors.push('Email обязателен');
-  } else if (!emailRegex.test(credentials.email)) {
-    errors.push('Некорректный формат email');
+  
+  if (!credentials.login?.trim()) {
+  errors.push('Логин обязателен');
   }
-
+ 
   if (!credentials.password) {
-    errors.push('Пароль обязателен');
-  } else if (credentials.password.length < 6) {
-    errors.push('Пароль должен быть не менее 6 символов');
+  errors.push('Пароль обязателен');
+  } else if (credentials.password.length < 5) {
+  errors.push('Пароль должен быть не менее 5 символов');
   }
-
-  if (isRegistration) {
-    if (!credentials.name?.trim()) {
-      errors.push('Имя обязательно');
-    } else if (credentials.name.length < 2) {
-      errors.push('Имя должно быть не короче 2 символов');
-    }
-  }
-
+ 
   return errors;
-};
+ };
 
 export const authStore = {
   state: ref({
@@ -69,40 +59,86 @@ export const authStore = {
     error: null
   }),
 
-  async authAction(action, credentials) {
+  async register(userData) {
     try {
       this.state.value.isLoading = true;
       this.state.value.error = null;
 
-      const validationErrors = validateCredentials(credentials, action === 'register');
-      if (validationErrors.length > 0) {
-        throw new Error(validationErrors.join('\n'));
+      const errors = validateCredentials(userData, true);
+      if (errors.length > 0) {
+        throw new Error(errors.join('\n'));
       }
 
-      const response = await mockAuthAPI[action](credentials);
+      const response = await http.post('/user', {
+        login: userData.login,
+        name: userData.name,
+        password: userData.password
+      });
 
-      if (!response?.user || !response?.token) {
-        throw new Error('Ошибка аутентификации');
+      if (response.status !== 201 || !response.data?.user) {
+        throw new Error('Ошибка регистрации');
       }
 
-      handleAuthSuccess(this.state, response);
-      return { success: true, user: response.user };
+      handleAuthSuccess(this.state, response.data);
+      return { success: true };
     } catch (error) {
-      this.state.value.error = {
-        messages: error.message.split('\n')
-      };
+      this.handleError(error, 'Ошибка регистрации');
       return { success: false };
     } finally {
       this.state.value.isLoading = false;
     }
   },
 
-  async register(userData) {
-    return this.authAction('register', userData);
+  async login(credentials) {
+    try {
+    this.state.value.isLoading = true;
+    this.state.value.error = null;
+   
+    const errors = validateCredentials(credentials);
+    if (errors.length > 0) {
+    throw new Error(errors.join('\n'));
+    }
+   
+    const response = await http.post('/user/login', {
+    login: credentials.login,
+    password: credentials.password
+    });
+   
+    if (response.status !== 201 || !response.data?.user) {
+    throw new Error('Ошибка авторизации');
+    }
+   
+    handleAuthSuccess(this.state, response.data);
+    return { success: true };
+    } catch (error) {
+    this.handleError(error, 'Неверный логин или пароль');
+    return { success: false };
+    } finally {
+    this.state.value.isLoading = false;
+    }
+   }
+   ,
+
+  async isTokenValid() {
+    if (!this.state.value.token) return false;
+    
+    try {
+      const response = await http.get('/user/check-token');
+      return response.status === 200;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        this.logout();
+      }
+      return false;
+    }
   },
 
-  async login(credentials) {
-    return this.authAction('login', credentials);
+  handleError(error, defaultMessage) {
+    const serverMessage = error.response?.data?.error || error.message;
+    this.state.value.error = {
+      messages: [serverMessage || defaultMessage],
+      details: error.response?.data?.errors
+    };
   },
 
   async logout() {
@@ -115,89 +151,28 @@ export const authStore = {
       safeLocalStorage.removeItem('token');
 
       await router.push({
-        path: '/signin',
+        path: '/login',
         query: { logout: true },
         replace: true
-      }).catch(() => {
-        window.location.href = '/signin';
       });
     } catch (error) {
       console.error('Ошибка выхода:', error);
-      throw error;
     }
   },
 
   isAuthenticated() {
-    return this.isTokenValid();
-  },
-
-  async isTokenValid() {
-    try {
-      if (!this.state.value.token) {
-        console.log('Токен отсутствует');
-        return false;
-      }
-  
-      // 1. Проверка базовой структуры токена
-      const tokenParts = this.state.value.token.split('.');
-      if (tokenParts.length !== 3) {
-        await this.logout();
-        return false;
-      }
-  
-      // 2. Декодирование payload с обработкой ошибок
-      const base64Payload = tokenParts[1]
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-      
-      let payload;
-      try {
-        payload = JSON.parse(atob(base64Payload));
-      } catch (e) {
-        console.error('Ошибка декодирования payload:', e);
-        await this.logout();
-        return false;
-      }
-  
-      // 3. Проверка наличия обязательных полей
-      if (!payload.exp) {
-        console.error('Токен не содержит дату истечения (exp)');
-        await this.logout();
-        return false;
-      }
-  
-      // 4. Проверка срока действия
-      const now = Date.now();
-      const expiresAt = payload.exp * 1000;
-      
-      if (expiresAt < now) {
-        console.warn('Токен просрочен');
-        await this.logout();
-        return false;
-      }
-  
-      return true;
-    } catch (e) {
-      console.error('Ошибка проверки токена:', e);
-      await this.logout();
-      return false;
-    }
+    return this.state.value.token !== null;
   },
 
   async init() {
     try {
       const token = safeLocalStorage.getItem('token');
       if (token) {
-        if (await this.isTokenValid()) {
-          this.state.value.user = JSON.parse(safeLocalStorage.getItem('user'));
-          this.state.value.token = token;
-        } else {
-          this.logout();
-        }
+        this.state.value.token = token;
+        this.state.value.user = JSON.parse(safeLocalStorage.getItem('user'));
       }
-    } catch (error) {
-      console.error('Ошибка инициализации:', error);
-      this.logout();
+    } catch  {
+      await this.logout();
     }
   }
 };

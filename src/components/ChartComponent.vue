@@ -140,36 +140,68 @@ watch([chartData, periodLabel], () => {
 
 <style lang="scss" scoped>
 .chart-container {
-  flex: 1;
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+ flex: 1;
+ background: white;
+ border-radius: 12px;
+ border: 1px solid #e2e8f0;
+ box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+ padding: 20px;
+ width: 100%;
+
+ @media (max-width: 768px) {
+ padding: 15px;
+ border-radius: 8px;
+ box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+ }
 }
 
 .chart-title {
-  margin-bottom: 20px;
+ margin-bottom: 20px;
 
-  h2 {
-    font-size: 20px;
-    color: #2d3748;
-    margin-bottom: 4px;
-  }
+ @media (max-width: 480px) {
+ margin-bottom: 15px;
+ }
 
-  p {
-    font-size: 14px;
-    color: #4a5568;
-  }
+ h2 {
+ font-size: 20px;
+ color: #2d3748;
+ margin-bottom: 4px;
+
+ @media (max-width: 768px) {
+ font-size: 18px;
+ }
+
+ @media (max-width: 480px) {
+ font-size: 16px;
+ }
+ }
+
+ p {
+ font-size: 14px;
+ color: #4a5568;
+
+ @media (max-width: 480px) {
+ font-size: 12px;
+ }
+ }
 }
 
 .chart {
-  height: 400px;
-  position: relative;
+ height: 400px;
+ position: relative;
 
-  canvas {
-    width: 100% !important;
-    height: 100% !important;
-  }
+ @media (max-width: 768px) {
+ height: 300px;
+ }
+
+ @media (max-width: 480px) {
+ height: 250px;
+ }
+
+ canvas {
+ width: 100% !important;
+ height: 100% !important;
+ }
 }
 </style>
+

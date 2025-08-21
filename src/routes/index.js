@@ -53,45 +53,40 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach(async (to, ) => {
+router.beforeEach(async (to) => {
   try {
-    // 1. Инициализация хранилища с обработкой ошибок
-    await authStore.init().catch(error => {
-      console.error('Auth init failed:', error);
-      authStore.logout();
-    });
+    await authStore.init();
 
-/*     // 2. Синхронное получение актуального статуса
-    const isAuthenticated = authStore.isAuthenticated();
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
     const guestOnly = to.matched.some(record => record.meta.guestOnly);
 
-    console.log('Навигация:', {
-      from: from.path,
-      to: to.path,
-      isAuthenticated,
-      requiresAuth,
-      guestOnly
-    }); */
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  
-  // Проверяем актуальность токена при каждом переходе
-  const isTokenValid = await authStore.isTokenValid();
-  
-  if (requiresAuth && !isTokenValid) {
-    await authStore.logout();
-    return { path: '/signin', query: { redirect: to.fullPath } };
-  }
-  
-  return true;
+    // Проверка авторизации через хранилище
+    const isAuthenticated = authStore.isAuthenticated();
 
+    // Для защищенных маршрутов
+    if (requiresAuth) {
+      if (!isAuthenticated) {
+        return { 
+          path: '/signin', 
+          query: { redirect: to.fullPath } 
+        };
+      }
+      return true;
+    }
+
+    // Для гостевых маршрутов
+    if (guestOnly && isAuthenticated) {
+      return { path: '/' };
+    }
+
+    return true;
 
   } catch (error) {
-    console.error('Критическая ошибка маршрутизации:', error);
-
+    console.error('Routing error:', error);
+    authStore.logout();
+    return { path: '/signin' };
   }
 });
-
 
 export default router
 

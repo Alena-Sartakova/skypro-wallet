@@ -4,12 +4,31 @@
       <img src="../assets/logo.svg" alt="Логотип" />
     </div>
 
-    <div class="nav-container">
+    <!-- Кнопка мобильного меню -->
+    <button
+      class="menu-toggle"
+      @click="isMenuOpen = !isMenuOpen"
+      aria-label="Меню"
+    >
+      <svg class="hamburger" viewBox="0 0 24 24">
+        <path
+          v-if="!isMenuOpen"
+          d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"
+        />
+        <path
+          v-else
+          d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"
+        />
+      </svg>
+    </button>
+
+    <div class="nav-container" :class="{ 'mobile-open': isMenuOpen }">
       <nav class="nav">
         <router-link
           to="/expenses"
           class="nav-link"
           :exact-active-class="'active'"
+          @click="isMenuOpen = false"
         >
           Мои расходы
         </router-link>
@@ -18,53 +37,51 @@
           to="/analysis"
           class="nav-link"
           :exact-active-class="'active'"
+          @click="isMenuOpen = false"
         >
           Анализ расходов
         </router-link>
       </nav>
 
-      <button 
-        class="logout-btn" 
-        @click="handleLogout"
-        :disabled="isLoggingOut"
-      >
-        {{ isLoggingOut ? 'Выход...' : 'Выйти' }}
+      <button class="logout-btn" @click="handleLogout" :disabled="isLoggingOut">
+        {{ isLoggingOut ? "Выход..." : "Выйти" }}
       </button>
     </div>
     <transition name="fade">
-    <div v-if="logoutError" class="error-message">
-      {{ logoutError }}
-    </div>
-  </transition>
+      <div v-if="logoutError" class="error-message">
+        {{ logoutError }}
+      </div>
+    </transition>
   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref } from "vue";
 import { authStore } from "@/store/authStore";
-import { useRouter } from 'vue-router';
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const isLoggingOut = ref(false);
 const logoutError = ref(null);
+const isMenuOpen = ref(false);
 
 const handleLogout = async () => {
   try {
     isLoggingOut.value = true;
     logoutError.value = null;
-    
+
     // 1. Вызываем выход
     await authStore.logout();
 
     // 2. Принудительная проверка
-    if (router.currentRoute.value.path !== '/signin') {
-      router.replace('/signin').catch(() => {
-        window.location.href = '/signin';
+    if (router.currentRoute.value.path !== "/signin") {
+      router.replace("/signin").catch(() => {
+        window.location.href = "/signin";
       });
     }
   } catch (error) {
     console.error("Ошибка при выходе:", error);
-    logoutError.value = 'Не удалось выйти. Попробуйте еще раз.';
+    logoutError.value = "Не удалось выйти. Попробуйте еще раз.";
     setTimeout(() => {
       logoutError.value = null;
     }, 5000);
@@ -73,7 +90,6 @@ const handleLogout = async () => {
   }
 };
 </script>
-
 
 <style lang="scss" scoped>
 .header {
@@ -84,10 +100,23 @@ const handleLogout = async () => {
   background: #ffffff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   position: relative;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+    position: relative;
+  }
 }
 
-.logo img {
-  height: 15px;
+.logo {
+  z-index: 100;
+
+  img {
+    height: 15px;
+
+    @media (max-width: 480px) {
+      height: 20px;
+    }
+  }
 }
 
 .nav-container {
@@ -96,14 +125,38 @@ const handleLogout = async () => {
   gap: 2rem;
   flex-grow: 1;
   justify-content: flex-end;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: white;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1.5rem;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 99;
+    padding: 70px 1rem 1rem;
+
+    &.mobile-open {
+      transform: translateX(0);
+    }
+  }
 }
 
 .nav {
   display: flex;
   gap: 2rem;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+
+  @media (max-width: 768px) {
+    flex-direction: column; // Вертикальное расположение ссылок
+    width: 100%;
+    gap: 1rem; // Уменьшенный промежуток
+    order: 1; // Порядок элементов
+  }
 
   &-link {
     color: #333;
@@ -132,6 +185,18 @@ const handleLogout = async () => {
         background: #6d28d9;
       }
     }
+
+@media (max-width: 768px) {
+  width: 100%; // Занимает всю ширину
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #eee; // Разделитель
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
   }
 }
 
@@ -146,10 +211,39 @@ const handleLogout = async () => {
   transition: color 0.2s ease;
   margin-left: auto;
 
+  @media (max-width: 768px) {
+    order: 2; // Кнопка после меню
+    width: 100%;
+    padding: 1rem;
+    margin-left: 0;
+    background: #f8f8f8;
+    border-radius: 8px;
+    font-size: 1.1rem;
+  }
+
   &:hover {
     color: #6d28d9;
   }
 }
+
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  z-index: 100;
+
+  @media (max-width: 768px) {
+    display: block;
+  }
+
+  .hamburger {
+    width: 32px;
+    height: 32px;
+    fill: #333;
+  }
+}
+
 .error-message {
   position: fixed;
   bottom: 20px;
@@ -158,13 +252,26 @@ const handleLogout = async () => {
   background: #ffebee;
   color: #b71c1c;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.5s;
 }
-.fade-enter, .fade-leave-to {
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(20px);
   opacity: 0;
 }
 </style>

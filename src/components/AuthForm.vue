@@ -12,13 +12,12 @@
         autocomplete="name"
       />
 
-      <!-- Поле email -->
+      <!-- **Замена email на логин** -->
       <input 
-        v-model="email" 
-        type="email" 
-        placeholder="Email" 
+        v-model="login" 
+        placeholder="Логин" 
         required
-        autocomplete="email"
+        autocomplete="username"
       />
 
       <!-- Поле пароля -->
@@ -88,16 +87,17 @@ const props = defineProps({
   }
 })
 
+// **Обновлённые переменные**
 const name = ref('')
-const email = ref('')
+const login = ref('') // Заменено email на login
 const password = ref('')
 
 const handleSubmit = async () => {
   try {
     const credentials = {
-      ...(props.isSignUp && { name: name.value }),
-      email: email.value,
-      password: password.value
+      login: login.value, // Используется login вместо email
+      password: password.value,
+      ...(props.isSignUp && { name: name.value })
     }
 
     try {
@@ -110,7 +110,7 @@ const handleSubmit = async () => {
         resetForm()
       }
     } catch (error) {
-      // Устанавливаем структурированную ошибку
+      // **Упрощённая обработка ошибок**
       authStore.state.value.error = {
         messages: Array.isArray(error.message) 
           ? error.message 
@@ -128,24 +128,24 @@ const handleSubmit = async () => {
 
 const resetForm = () => {
   name.value = ''
-  email.value = ''
+  login.value = '' // Сброс login вместо email
   password.value = ''
 }
 
 const formattedError = computed(() => {
   if (!authStore.state.value.error?.messages) return ''
   
-  // Обрабатываем разные форматы сообщений
+  // **Оптимизированная обработка сообщений**
   return authStore.state.value.error.messages
     .flatMap(msg => {
       if (typeof msg === 'string') return msg.split('\n')
-      if (msg?.message) return msg.message
       return String(msg)
     })
     .filter(msg => msg.trim())
     .join('<br>')
 })
 </script>
+
 
 <style lang="scss" scoped>
 .login-container {
