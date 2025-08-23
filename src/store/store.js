@@ -11,14 +11,14 @@ export const expensesStore = {
       
       const userId = authStore.state.value.user?._id;
       if (!userId) {
-        console.error('UserId не определен:', authStore.state.value);
+
         throw new Error('Не определен пользователь');
       }
       
       const response = await http.get('/transactions', {
         params: { userId }
       });
-      console.log('Полученные транзакции:', response.data);
+
       this.state.value = response.data.map(expense => ({
         id: expense._id,
         description: expense.description,
@@ -48,13 +48,11 @@ export const expensesStore = {
         category: newExpense.category,
         date: this.formatDate(newExpense.date)
       };
-
-      console.log('Отправка данных:', requestData);
       
       const response = await http.post('/transactions', requestData);
       
       if (response.status === 201) {
-        console.log('Ответ сервера:', response.data);
+
         this.state.value = response.data.transactions.map(t => ({
           id: t._id,
           description: t.description,
@@ -118,7 +116,6 @@ export const expensesStore = {
       const response = await http.delete(`/transactions/${id}`);
       
       if (response.status === 201) {
-        // Проверяем, есть ли поле transactions в ответе
         if (response.data && response.data.transactions) {
           this.state.value = response.data.transactions.map(expense => ({
             id: expense._id,
@@ -128,7 +125,6 @@ export const expensesStore = {
             amount: expense.sum
           }));
         } else {
-          // Если transactions нет, получаем список заново
           await this.getExpenses();
         }
       }
@@ -138,9 +134,52 @@ export const expensesStore = {
       }
       throw error;
     }
-  }
+  },
+  async getPeriodExpenses(startDate, endDate) {
+    try {
+      if (!this.isValidDate(startDate) || !this.isValidDate(endDate)) {
+        throw new Error('Некорректный формат дат');
+      }
   
-   ,
+      const formatDate = (date) => {
+        const d = new Date(date);
+        return `${d.getMonth() + 1}-${d.getDate()}-${d.getFullYear()}`;
+      };
   
-
+      const requestBody = {
+        start: formatDate(startDate),
+        end: formatDate(endDate)
+      };
+  
+      console.log('Запрос периода:', requestBody);
+  
+      const response = await http.post('/transactions/period', requestBody);
+  
+      if (response.status === 200) {
+        // Исправление 1: Используем отдельное поле для хранения
+        const newData = response.data.map(transaction => ({
+          id: transaction._id,
+          description: transaction.description,
+          category: transaction.category,
+          date: new Date(transaction.date), // Сохраняем Date объект
+          amount: transaction.sum,
+          userId: transaction.userId
+        }));
+  
+        // Исправление 2: Обновляем хранилище только при изменении данных
+        if (JSON.stringify(newData) !== JSON.stringify(this.state.value)) {
+          this.state.value = newData;
+        }
+  
+        console.log('Получено транзакций:', this.state.value.length);
+        return this.state.value;
+      }
+    } catch (error) {
+      console.error('Ошибка получения транзакций за период:', {
+        dates: { startDate, endDate },
+        error: error.response?.data || error.message
+      });
+      throw error; // Пробрасываем оригинальную ошибку
+    }
+  },
 };

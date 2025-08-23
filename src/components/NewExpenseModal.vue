@@ -52,9 +52,8 @@
 </template>
 
 <script setup>
-import { authStore } from "@/store/authStore";
 import { expensesStore } from "@/store/store";
-import { ref, defineAsyncComponent, computed } from "vue";
+import { ref, defineAsyncComponent } from "vue";
 
 // Инициализация данных формы
 const formData = ref({
@@ -66,10 +65,6 @@ const formData = ref({
 
 const error = ref("");
 
-// Добавим логирование пользователя
-const currentUser = computed(() => authStore.state.value.user);
-
-console.log("Текущий пользователь:", currentUser.value);
 
 // Список категорий с иконками
 const categories = [

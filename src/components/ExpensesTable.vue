@@ -35,8 +35,8 @@ import { computed, onMounted } from "vue";
 import { expensesStore } from "@/store/store.js";
 
 const expenses = computed(() => {
-  return [...expensesStore.state.value].sort((a, b) => 
-    new Date(b.date) - new Date(a.date)
+  return [...expensesStore.state.value].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
   );
 });
 
@@ -46,17 +46,17 @@ onMounted(() => {
 
 const handleDeleteExpense = async (id) => {
   if (confirm("Вы уверены, что хотите удалить эту запись?")) {
-  try {
-  await expensesStore.deleteExpense(id);
-  } catch (err) {
-  if (err.message === 'Транзакция уже удалена') {
-  alert('Эта транзакция уже была удалена');
-  } else {
-  alert('Произошла ошибка при удалении');
+    try {
+      await expensesStore.deleteExpense(id);
+    } catch (err) {
+      if (err.message === "Транзакция уже удалена") {
+        alert("Эта транзакция уже была удалена");
+      } else {
+        alert("Произошла ошибка при удалении");
+      }
+    }
   }
-  }
-  }
- };
+};
 </script>
 
 <style lang="scss" scoped>
