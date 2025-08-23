@@ -27,12 +27,20 @@ const safeLocalStorage = {
   }
 };
 
-const handleAuthSuccess = (storeState, responseData) => {
-  const { user, token } = responseData;
+const handleAuthSuccess = (storeState, userData) => {
+  const { token, ...user } = userData;
   storeState.value.user = user;
   storeState.value.token = token;
+  
+  // Добавляем проверку перед сохранением
+  if (!user || !token) {
+    console.error('Неверные данные для сохранения:', userData);
+    return;
+  }
+  
   safeLocalStorage.setItem('user', JSON.stringify(user));
   safeLocalStorage.setItem('token', token);
+  http.defaults.headers.common.Authorization = `Bearer ${token}`;
 };
 
 const validateCredentials = (credentials = false) => {
@@ -51,7 +59,7 @@ const validateCredentials = (credentials = false) => {
   return errors;
  };
 
-export const authStore = {
+ export const authStore = {
   state: ref({
     user: JSON.parse(safeLocalStorage.getItem('user')) || null,
     token: safeLocalStorage.getItem('token') || null,
@@ -79,7 +87,7 @@ export const authStore = {
         throw new Error('Ошибка регистрации');
       }
 
-      handleAuthSuccess(this.state, response.data);
+      handleAuthSuccess(this.state, response.data.user);
       return { success: true };
     } catch (error) {
       this.handleError(error, 'Ошибка регистрации');
@@ -91,33 +99,34 @@ export const authStore = {
 
   async login(credentials) {
     try {
-    this.state.value.isLoading = true;
-    this.state.value.error = null;
-   
-    const errors = validateCredentials(credentials);
-    if (errors.length > 0) {
-    throw new Error(errors.join('\n'));
-    }
-   
-    const response = await http.post('/user/login', {
-    login: credentials.login,
-    password: credentials.password
-    });
-   
-    if (response.status !== 201 || !response.data?.user) {
-    throw new Error('Ошибка авторизации');
-    }
-   
-    handleAuthSuccess(this.state, response.data);
-    return { success: true };
+      this.state.value.isLoading = true;
+      this.state.value.error = null;
+
+      const errors = validateCredentials(credentials);
+      if (errors.length > 0) {
+        throw new Error(errors.join('\n'));
+      }
+
+      const response = await http.post('/user/login', {
+        login: credentials.login,
+        password: credentials.password
+      });
+
+      if (response.status !== 201 || !response.data?.user) {
+        throw new Error('Ошибка авторизации');
+      }
+
+      handleAuthSuccess(this.state, response.data.user);
+      return { success: true };
     } catch (error) {
-    this.handleError(error, 'Неверный логин или пароль');
-    return { success: false };
+      this.handleError(error, 'Неверный логин или пароль');
+      return { success: false };
     } finally {
-    this.state.value.isLoading = false;
+      this.state.value.isLoading = false;
     }
-   }
-   ,
+  },
+
+  
 
   async isTokenValid() {
     if (!this.state.value.token) return false;
@@ -151,7 +160,7 @@ export const authStore = {
       safeLocalStorage.removeItem('token');
 
       await router.push({
-        path: '/login',
+        path: '/signin',
         query: { logout: true },
         replace: true
       });
@@ -167,12 +176,26 @@ export const authStore = {
   async init() {
     try {
       const token = safeLocalStorage.getItem('token');
+      const user = safeLocalStorage.getItem('user');
+      
       if (token) {
         this.state.value.token = token;
-        this.state.value.user = JSON.parse(safeLocalStorage.getItem('user'));
       }
-    } catch  {
+      
+      if (user) {
+        try {
+          this.state.value.user = JSON.parse(user);
+        } catch (error) {
+          console.error('Ошибка парсинга пользователя:', error);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Ошибка инициализации:', error);
       await this.logout();
     }
   }
+
+  
 };
+

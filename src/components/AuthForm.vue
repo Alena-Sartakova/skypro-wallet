@@ -95,36 +95,35 @@ const password = ref('')
 const handleSubmit = async () => {
   try {
     const credentials = {
-      login: login.value, // Используется login вместо email
+      login: login.value.trim(),
       password: password.value,
-      ...(props.isSignUp && { name: name.value })
-    }
+      ...(props.isSignUp && { name: name.value.trim() })
+    };
 
     try {
       const { success } = props.isSignUp 
         ? await authStore.register(credentials)
-        : await authStore.login(credentials)
+        : await authStore.login(credentials);
 
       if (success) {
-        router.push('/expenses')
-        resetForm()
+        // Добавляем задержку для обновления состояния
+        await new Promise(resolve => setTimeout(resolve, 100));
+        router.push('/expenses');
+        resetForm();
       }
     } catch (error) {
-      // **Упрощённая обработка ошибок**
       authStore.state.value.error = {
-        messages: Array.isArray(error.message) 
-          ? error.message 
-          : [error.message]
-      }
-      password.value = ''
+        messages: [error.message || 'Произошла ошибка']
+      };
+      password.value = '';
     }
   } catch (err) {
-    console.error('Ошибка при отправке:', err)
+    console.error('Ошибка при отправке:', err);
     authStore.state.value.error = {
       messages: ['Произошла ошибка при обработке запроса']
-    }
+    };
   }
-}
+};
 
 const resetForm = () => {
   name.value = ''

@@ -17,12 +17,12 @@
           <td>{{ expense.date }}</td>
           <td>{{ expense.amount }} ₽</td>
           <td>
-            <img 
-              src="../assets/icons/bag.svg" 
-              alt="Удалить" 
+            <img
+              src="../assets/icons/bag.svg"
+              alt="Удалить"
               class="delete-icon"
               @click="handleDeleteExpense(expense.id)"
-            >
+            />
           </td>
         </tr>
       </tbody>
@@ -31,18 +31,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { expensesStore } from '@/store/store.js';
+import { computed, onMounted } from "vue";
+import { expensesStore } from "@/store/store.js";
 
-const expenses = computed(() => expensesStore.getExpenses());
+const expenses = computed(() => {
+  return [...expensesStore.state.value].sort((a, b) => 
+    new Date(b.date) - new Date(a.date)
+  );
+});
 
-const handleDeleteExpense = (id) => {
-  if (confirm('Вы уверены, что хотите удалить эту запись?')) {
-    expensesStore.deleteExpense(id);
+onMounted(() => {
+  expensesStore.getExpenses();
+});
+
+const handleDeleteExpense = async (id) => {
+  if (confirm("Вы уверены, что хотите удалить эту запись?")) {
+  try {
+  await expensesStore.deleteExpense(id);
+  } catch (err) {
+  if (err.message === 'Транзакция уже удалена') {
+  alert('Эта транзакция уже была удалена');
+  } else {
+  alert('Произошла ошибка при удалении');
   }
-};
+  }
+  }
+ };
 </script>
-
 
 <style lang="scss" scoped>
 .table-container {
@@ -57,7 +72,8 @@ const handleDeleteExpense = (id) => {
     width: 100%;
     border-collapse: collapse;
 
-    th, td {
+    th,
+    td {
       padding: 14px 16px;
       border-bottom: 1px solid #e2e8f0;
     }
@@ -84,9 +100,9 @@ const handleDeleteExpense = (id) => {
   opacity: 0.7;
 }
 
-th:last-child, td:last-child {
+th:last-child,
+td:last-child {
   width: 40px;
   text-align: center;
 }
-
 </style>

@@ -39,22 +39,22 @@
           <input
             v-model.number="formData.amount"
             type="number"
-            placeholder="0"
             min="1"
-            step="1"
+            placeholder="0"
             required
           />
         </div>
       </div>
-
+      <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" class="submit-button">Добавить расход</button>
     </form>
   </div>
 </template>
 
 <script setup>
+import { authStore } from "@/store/authStore";
 import { expensesStore } from "@/store/store";
-import { ref, defineAsyncComponent } from "vue";
+import { ref, defineAsyncComponent, computed } from "vue";
 
 // Инициализация данных формы
 const formData = ref({
@@ -63,6 +63,13 @@ const formData = ref({
   date: "",
   amount: null,
 });
+
+const error = ref("");
+
+// Добавим логирование пользователя
+const currentUser = computed(() => authStore.state.value.user);
+
+console.log("Текущий пользователь:", currentUser.value);
 
 // Список категорий с иконками
 const categories = [
@@ -94,35 +101,54 @@ const categories = [
   },
 ];
 
-// Валидация формы
-const validateForm = () => {
-  return (
-    formData.value.description.trim() &&
-    formData.value.date &&
-    formData.value.amount > 0
-  );
+const categoryMapping = {
+  Еда: "food",
+  Транспорт: "transport",
+  Жилье: "housing",
+  Развлечения: "joy",
+  Образование: "education",
+  Другое: "others",
 };
 
+// Валидация формы
+const validateForm = () => {
+  const amount = formData.value.amount;
+  return (
+  formData.value.description.trim() &&
+  formData.value.date &&
+  typeof amount === 'number' &&
+  amount > 0
+  );
+ };
+
 // Обработчик отправки формы
-const handleSubmit = () => {
-  if (!validateForm()) {
-    alert("Пожалуйста, заполните все обязательные поля корректно");
-    return;
-  }
-
+const handleSubmit = async () => {
   try {
-    expensesStore.addExpense({
-      description: formData.value.description.trim(),
-      category: formData.value.category,
-      date: formData.value.date,
-      amount: Number(formData.value.amount),
-    });
+    if (!validateForm()) {
+      error.value = "Пожалуйста, заполните все обязательные поля корректно";
+      return;
+    }
 
-    resetForm();
-    alert("Расход успешно добавлен!");
-  } catch (error) {
-    console.error("Ошибка при добавлении расхода:", error);
-    alert("Произошла ошибка при сохранении расхода");
+    try {
+      await expensesStore.addExpense({
+        description: formData.value.description.trim(),
+        category: categoryMapping[formData.value.category],
+        date: formData.value.date,
+        sum: formData.value.amount,
+      });
+
+      resetForm();
+      error.value = "";
+      alert("Расход успешно добавлен!");
+    } catch (err) {
+      if (err.response && err.response.data) {
+        error.value = err.response.data.message || "Произошла ошибка";
+      } else {
+        error.value = err.message || "Произошла ошибка при сохранении расхода";
+      }
+    }
+  } catch {
+    error.value = "Ошибка авторизации";
   }
 };
 
@@ -134,6 +160,7 @@ const resetForm = () => {
     date: "",
     amount: null,
   };
+  error.value = "";
 };
 </script>
 
@@ -270,11 +297,6 @@ const resetForm = () => {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
-
-  &:hover,
-  &:active {
-    background: darken(#7334ea, 15%);
-  }
 }
 
 input,
