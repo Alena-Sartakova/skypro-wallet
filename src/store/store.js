@@ -150,9 +150,7 @@ export const expensesStore = {
         start: formatDate(startDate),
         end: formatDate(endDate)
       };
-  
-      console.log('Запрос периода:', requestBody);
-  
+
       const response = await http.post('/transactions/period', requestBody);
   
       if (response.status === 200) {
@@ -170,8 +168,7 @@ export const expensesStore = {
         if (JSON.stringify(newData) !== JSON.stringify(this.state.value)) {
           this.state.value = newData;
         }
-  
-        console.log('Получено транзакций:', this.state.value.length);
+
         return this.state.value;
       }
     } catch (error) {

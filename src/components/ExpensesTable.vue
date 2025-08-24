@@ -11,11 +11,11 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="expense in expenses" :key="expense.id">
+        <tr v-for="expense in processedExpenses" :key="expense.id">
           <td>{{ expense.description }}</td>
-          <td>{{ expense.category }}</td>
-          <td>{{ expense.date }}</td>
-          <td>{{ expense.amount }} ₽</td>
+          <td>{{ expense.translatedCategory }}</td>
+          <td>{{ expense.formattedDate }}</td>
+          <td>{{ expense.amount.toLocaleString() }} ₽</td>
           <td>
             <img
               src="../assets/icons/bag.svg"
@@ -34,10 +34,41 @@
 import { computed, onMounted } from "vue";
 import { expensesStore } from "@/store/store.js";
 
-const expenses = computed(() => {
-  return [...expensesStore.state.value].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
-  );
+// Словарь перевода категорий
+const categoryTranslations = {
+  food: "Еда",
+  transport: "Транспорт",
+  housing: "Жилье",
+  entertainment: "Развлечения",
+  education: "Образование",
+  other: "Другое",
+};
+
+// Форматирование даты
+const formatDate = (isoDate) => {
+  try {
+    const options = {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC",
+    };
+    return new Date(isoDate).toLocaleDateString("ru-RU", options);
+  } catch {
+    return isoDate;
+  }
+};
+
+// Обработанные данные
+const processedExpenses = computed(() => {
+  return [...expensesStore.state.value]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map((expense) => ({
+      ...expense,
+      translatedCategory:
+        categoryTranslations[expense.category] || expense.category,
+      formattedDate: formatDate(expense.date),
+    }));
 });
 
 onMounted(() => {
@@ -69,13 +100,18 @@ const handleDeleteExpense = async (id) => {
   padding: 20px;
 
   table {
-    width: 100%;
+    width: 789px;
     border-collapse: collapse;
+
+    thead {
+      border-bottom: 1px solid #999999; // Граница между заголовками и данными
+    }
 
     th,
     td {
       padding: 14px 16px;
-      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle; // Вертикальное выравнивание
+      text-align: left; // Горизонтальное выравнивание
     }
 
     th {
@@ -84,11 +120,13 @@ const handleDeleteExpense = async (id) => {
       font-weight: 600;
     }
 
+    // Убираем нижнюю границу у последней строки
     tr:last-child td {
       border-bottom: none;
     }
   }
 }
+
 .delete-icon {
   width: 20px;
   height: 20px;
@@ -104,5 +142,15 @@ th:last-child,
 td:last-child {
   width: 40px;
   text-align: center;
+}
+
+.category-cell {
+  color: #999999;
+  font-family: Montserrat;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
 }
 </style>

@@ -35,13 +35,12 @@ import { expensesStore } from "@/store/store";
 import CalendarComponent from "./CalendarComponent.vue";
 import ChartComponent from "./ChartComponent.vue";
 
-
 // Состояния дат
 const selectedStartDate = ref(null);
 const selectedEndDate = ref(null);
 const isLoading = ref(false);
 const errorMessage = ref(null);
-const chartReadyData = ref([]); 
+const chartReadyData = ref([]);
 
 // Вычисляемые свойства
 const hasSelectedPeriod = computed(
@@ -59,8 +58,6 @@ const periodDays = computed(() => {
 });
 
 const logDates = (start, end) => {
-
-
   selectedStartDate.value = start;
   selectedEndDate.value = end;
 };
@@ -73,26 +70,15 @@ const loadExpenses = async () => {
     isLoading.value = true;
     chartReadyData.value = []; // Сбрасываем предыдущие данные
 
-    console.log("⌛ Запрос к API:", {
-      start: selectedStartDate.value.toISOString(),
-      end: selectedEndDate.value.toISOString(),
-    });
-
     const result = await expensesStore.getPeriodExpenses(
       selectedStartDate.value,
       selectedEndDate.value
     );
 
     // Устанавливаем данные только после успешного ответа
-    chartReadyData.value = result.filter(e => 
-      e?.category && typeof e.amount === 'number'
+    chartReadyData.value = result.filter(
+      (e) => e?.category && typeof e.amount === "number"
     );
-
-    console.log("✅ Успешный ответ:", {
-      count: chartReadyData.value.length,
-      sample: chartReadyData.value.slice(0, 3),
-    });
-
   } catch (error) {
     handleError("Ошибка загрузки", error);
   } finally {
@@ -132,7 +118,6 @@ const formattedEndDate = computed(
     }) || ""
 );
 
-
 // Автоматическая загрузка при изменении дат
 watch(
   [selectedStartDate, selectedEndDate],
@@ -146,16 +131,14 @@ watch(
   }
 );
 
-
-watch(chartReadyData, (newData) => {
-  if (newData.length > 0) {
-    console.log('📤 Данные для графика:', {
-      count: newData.length,
-      sample: newData.slice(0, 3),
-      categories: [...new Set(newData.map(e => e.category))]
-    });
-  }
-}, { deep: true });
+watch(
+  chartReadyData,
+  (newData) => {
+    if (newData.length > 0) {
+    }
+  },
+  { deep: true }
+);
 </script>
 
 <style lang="scss" scoped>

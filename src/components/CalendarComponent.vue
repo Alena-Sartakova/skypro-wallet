@@ -17,6 +17,7 @@
           v-for="(monthGroup, index) in groupedDates"
           :key="index"
           class="month-group"
+          :class="{ 'current-month': isCurrentMonth(monthGroup) }"
         >
           <div class="month-header">
             {{ formatMonth(monthGroup.month, monthGroup.year) }}
@@ -45,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
 
 const props = defineProps({
   selectedStart: Date,
@@ -57,7 +58,6 @@ const emit = defineEmits(["date-selected"]);
 // Локальное состояние дат
 const startDate = ref(null);
 const endDate = ref(null);
-const currentDate = new Date();
 
 // Нормализация даты (без времени)
 const normalizeDate = (date) =>
@@ -68,15 +68,10 @@ const selectDate = (clickedDate) => {
   const normalized = normalizeDate(clickedDate);
   if (!normalized) return;
 
-
-
-
   // Логика выбора
   if (!startDate.value) {
     // Первый выбор
     startDate.value = normalized;
-
-
   } else if (!endDate.value) {
     // Второй выбор
     if (normalized.getTime() === startDate.value.getTime()) {
@@ -88,12 +83,11 @@ const selectDate = (clickedDate) => {
       if (endDate.value < startDate.value) {
         [startDate.value, endDate.value] = [endDate.value, startDate.value];
 
-        console.log('[Calendar] Dates swapped:', formatLogRange());
-
+        console.log("[Calendar] Dates swapped:", formatLogRange());
       }
       // Валидация периода
       if (!validatePeriod(startDate.value, endDate.value)) {
-        console.warn('Некорректный период');
+        console.warn("Некорректный период");
         resetSelection();
       }
     }
@@ -116,53 +110,78 @@ const resetSelection = () => {
 const validatePeriod = (start, end) => {
   if (!start || !end) return true;
   const maxPeriod = 365 * 24 * 60 * 60 * 1000; // 1 год
-  return (end - start) <= maxPeriod;
+  return end - start <= maxPeriod;
 };
 
 // Вспомогательные функции для логирования
-const formatLogDate = (date) => 
-  date ? date.toLocaleDateString('ru-RU') : 'null';
+const formatLogDate = (date) =>
+  date ? date.toLocaleDateString("ru-RU") : "null";
 
-const formatLogRange = () => 
+const formatLogRange = () =>
   `${formatLogDate(startDate.value)} — ${formatLogDate(endDate.value)}`;
 
 const emitSelection = () => {
-
   emit("date-selected", startDate.value, endDate.value);
 };
 
-
 // Состояния для стилизации
-const isSingleDay = computed(() => 
-startDate.value?.getTime() === endDate.value?.getTime()
+const isSingleDay = computed(
+  () => startDate.value?.getTime() === endDate.value?.getTime()
 );
 
 const isDateSelected = (date) =>
-date &&
-((startDate.value && date.getTime() === startDate.value.getTime()) ||
- (endDate.value && date.getTime() === endDate.value.getTime()));
+  date &&
+  ((startDate.value && date.getTime() === startDate.value.getTime()) ||
+    (endDate.value && date.getTime() === endDate.value.getTime()));
 
 const isDateInRange = (date) =>
-date &&
-startDate.value &&
-endDate.value &&
-date > startDate.value &&
-date < endDate.value;
+  date &&
+  startDate.value &&
+  endDate.value &&
+  date > startDate.value &&
+  date < endDate.value;
 
 // Генерация данных календаря
 const groupedDates = computed(() => {
   const result = [];
-  for (let m = 0; m < 3; m++) {
-    const monthDate = new Date();
-    monthDate.setMonth(currentDate.getMonth() + m);
+  const now = new Date();
 
+  // Начальная дата: текущий месяц - 12 месяцев
+  let current = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+
+  // Генерируем 37 месяцев (12 предыдущих + текущий + 24 следующих)
+  for (let i = 0; i < 37; i++) {
     result.push({
-      month: monthDate.getMonth(),
-      year: monthDate.getFullYear(),
-      dates: generateMonthDates(monthDate),
+      month: current.getMonth(),
+      year: current.getFullYear(),
+      dates: generateMonthDates(current),
     });
+    current.setMonth(current.getMonth() + 1);
   }
+
   return result;
+});
+
+// Проверка текущего месяца
+const isCurrentMonth = (monthGroup) => {
+  const now = new Date();
+  return (
+    monthGroup.month === now.getMonth() && monthGroup.year === now.getFullYear()
+  );
+};
+
+// Автопрокрутка к текущему месяцу
+onMounted(() => {
+  nextTick(() => {
+    const currentMonthIndex = groupedDates.value.findIndex(isCurrentMonth);
+    const monthElements = document.querySelectorAll(".month-group");
+    if (monthElements[currentMonthIndex]) {
+      monthElements[currentMonthIndex].scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
+    }
+  });
 });
 
 // Генерация дней месяца

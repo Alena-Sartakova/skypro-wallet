@@ -4,7 +4,25 @@
       <img src="../assets/logo.svg" alt="Логотип" />
     </div>
 
-    <!-- Кнопка мобильного меню -->
+    <!-- Десктопная навигация -->
+    <nav class="desktop-nav">
+      <router-link
+        to="/expenses"
+        class="nav-link"
+        :exact-active-class="'active'"
+      >
+        Мои расходы
+      </router-link>
+      <router-link
+        to="/analysis"
+        class="nav-link"
+        :exact-active-class="'active'"
+      >
+        Анализ расходов
+      </router-link>
+    </nav>
+
+    <!-- Мобильное меню -->
     <button
       class="menu-toggle"
       @click="isMenuOpen = !isMenuOpen"
@@ -22,8 +40,9 @@
       </svg>
     </button>
 
+    <!-- Контейнер мобильного меню -->
     <div class="nav-container" :class="{ 'mobile-open': isMenuOpen }">
-      <nav class="nav">
+      <nav class="mobile-nav">
         <router-link
           to="/expenses"
           class="nav-link"
@@ -32,7 +51,6 @@
         >
           Мои расходы
         </router-link>
-
         <router-link
           to="/analysis"
           class="nav-link"
@@ -47,6 +65,7 @@
         {{ isLoggingOut ? "Выход..." : "Выйти" }}
       </button>
     </div>
+
     <transition name="fade">
       <div v-if="logoutError" class="error-message">
         {{ logoutError }}
@@ -100,14 +119,16 @@ const handleLogout = async () => {
   background: #ffffff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   position: relative;
+  gap: 2rem;
 
   @media (max-width: 768px) {
     padding: 1rem;
-    position: relative;
+    gap: 1rem;
   }
 }
 
 .logo {
+  flex-shrink: 0;
   z-index: 100;
 
   img {
@@ -119,12 +140,69 @@ const handleLogout = async () => {
   }
 }
 
+.desktop-nav {
+  display: flex;
+  gap: 2rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.nav-link {
+  color: #333;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover:not(.active) {
+    color: #6d28d9;
+    font-weight: 600;
+  }
+
+  &.active {
+    color: #6d28d9;
+    font-weight: 600;
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -4px;
+      width: 100%;
+      height: 2px;
+      background: #6d28d9;
+    }
+  }
+}
+
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  z-index: 100;
+
+  @media (max-width: 768px) {
+    display: block;
+  }
+
+  .hamburger {
+    width: 32px;
+    height: 32px;
+    fill: #333;
+  }
+}
+
 .nav-container {
   display: flex;
   align-items: center;
   gap: 2rem;
-  flex-grow: 1;
-  justify-content: flex-end;
 
   @media (max-width: 768px) {
     position: fixed;
@@ -147,56 +225,14 @@ const handleLogout = async () => {
   }
 }
 
-.nav {
-  display: flex;
-  gap: 2rem;
+.mobile-nav {
+  display: none;
 
   @media (max-width: 768px) {
-    flex-direction: column; // Вертикальное расположение ссылок
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    gap: 1rem; // Уменьшенный промежуток
-    order: 1; // Порядок элементов
-  }
-
-  &-link {
-    color: #333;
-    text-decoration: none;
-    font-size: 1rem;
-    font-weight: 400;
-    transition: all 0.2s ease;
-    position: relative;
-
-    &:hover:not(.active) {
-      color: #6d28d9;
-      font-weight: 600;
-    }
-
-    &.active {
-      color: #6d28d9;
-      font-weight: 600;
-
-      &::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        bottom: -4px;
-        width: 100%;
-        height: 2px;
-        background: #6d28d9;
-      }
-    }
-
-@media (max-width: 768px) {
-  width: 100%; // Занимает всю ширину
-  padding: 1rem;
-  text-align: center;
-  font-size: 1.1rem;
-  border-bottom: 1px solid #eee; // Разделитель
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
+    gap: 1rem;
   }
 }
 
@@ -209,13 +245,10 @@ const handleLogout = async () => {
   font-weight: 400;
   padding: 0;
   transition: color 0.2s ease;
-  margin-left: auto;
 
   @media (max-width: 768px) {
-    order: 2; // Кнопка после меню
     width: 100%;
     padding: 1rem;
-    margin-left: 0;
     background: #f8f8f8;
     border-radius: 8px;
     font-size: 1.1rem;
@@ -223,24 +256,6 @@ const handleLogout = async () => {
 
   &:hover {
     color: #6d28d9;
-  }
-}
-
-.menu-toggle {
-  display: none;
-  background: none;
-  border: none;
-  padding: 8px;
-  z-index: 100;
-
-  @media (max-width: 768px) {
-    display: block;
-  }
-
-  .hamburger {
-    width: 32px;
-    height: 32px;
-    fill: #333;
   }
 }
 
@@ -261,17 +276,6 @@ const handleLogout = async () => {
 }
 .fade-enter,
 .fade-leave-to {
-  opacity: 0;
-}
-
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.3s cubic-bezier(0.55, 0.085, 0.68, 0.53);
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(20px);
   opacity: 0;
 }
 </style>
