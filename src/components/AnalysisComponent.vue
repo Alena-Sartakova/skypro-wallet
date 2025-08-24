@@ -7,7 +7,8 @@
 
       <!-- График  -->
       <ChartComponent
-        :expenses="filteredExpenses || []"
+        :expenses="chartReadyData"
+        :is-loading="isLoading"
         :start-date="formattedStartDate"
         :end-date="formattedEndDate"
       />
@@ -40,6 +41,7 @@ const selectedStartDate = ref(null);
 const selectedEndDate = ref(null);
 const isLoading = ref(false);
 const errorMessage = ref(null);
+const chartReadyData = ref([]); 
 
 // Вычисляемые свойства
 const hasSelectedPeriod = computed(
@@ -69,6 +71,7 @@ const loadExpenses = async () => {
     if (!hasSelectedPeriod.value || isLoading.value) return;
 
     isLoading.value = true;
+    chartReadyData.value = []; // Сбрасываем предыдущие данные
 
     console.log("⌛ Запрос к API:", {
       start: selectedStartDate.value.toISOString(),
@@ -80,19 +83,17 @@ const loadExpenses = async () => {
       selectedEndDate.value
     );
 
+    // Устанавливаем данные только после успешного ответа
+    chartReadyData.value = result.filter(e => 
+      e?.category && typeof e.amount === 'number'
+    );
+
     console.log("✅ Успешный ответ:", {
-      count: result.length,
-      sample: result.slice(0, 3),
-    });
-  } catch (error) {
-    console.error("❌ Ошибка:", {
-      dates: {
-        start: selectedStartDate.value,
-        end: selectedEndDate.value,
-      },
-      error: error.message,
+      count: chartReadyData.value.length,
+      sample: chartReadyData.value.slice(0, 3),
     });
 
+  } catch (error) {
     handleError("Ошибка загрузки", error);
   } finally {
     isLoading.value = false;
@@ -131,15 +132,6 @@ const formattedEndDate = computed(
     }) || ""
 );
 
-const filteredExpenses = computed(() => {
-  if (!hasSelectedPeriod.value || !expensesStore.expenses?.length) return [];
-  
-  return expensesStore.expenses.filter(expense => {
-    const expenseDate = new Date(expense.date);
-    return expenseDate >= selectedStartDate.value && 
-           expenseDate <= selectedEndDate.value;
-  });
-});
 
 // Автоматическая загрузка при изменении дат
 watch(
@@ -155,18 +147,15 @@ watch(
 );
 
 
-watch(() => [...filteredExpenses.value], (newVal) => {
-  console.log('📤 Данные для графика:', {
-    count: newVal.length,
-    sample: newVal.slice(0, 3).map(e => ({
-      id: e.id,
-      category: e.category,
-      amount: e.amount,
-      date: e.date
-    })),
-    categories: [...new Set(newVal.map(e => e.category))]
-  });
-}, { deep: true, immediate: true });
+watch(chartReadyData, (newData) => {
+  if (newData.length > 0) {
+    console.log('📤 Данные для графика:', {
+      count: newData.length,
+      sample: newData.slice(0, 3),
+      categories: [...new Set(newData.map(e => e.category))]
+    });
+  }
+}, { deep: true });
 </script>
 
 <style lang="scss" scoped>

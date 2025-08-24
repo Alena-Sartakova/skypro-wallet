@@ -2,7 +2,7 @@
   <div class="chart-container">
     <div class="chart-title">
       <h2>{{ periodLabel }}</h2>
-      <p>Общая сумма расходов: {{ totalExpenses }} ₽</p>
+      <p>Общая сумма расходов: {{ formattedTotal }} ₽</p>
     </div>
     <div class="chart">
       <canvas ref="chartCanvas"></canvas>
@@ -21,36 +21,63 @@ const props = defineProps({
   },
   expenses: {
     type: Array,
-    default: () => [0, 0, 0, 0, 0, 0]
+    default: () => [],
+    validator: (value) => {
+      console.log('📥 Получены данные для графика:', {
+        count: value.length,
+        sample: value.slice(0, 3),
+        categories: [...new Set(value.map(e => e?.category))]
+      });
+      return true;
+    }
   },
   startDate: String,
   endDate: String
 });
+
+const normalizedCategories = {
+  food: 'Еда',
+  transport: 'Транспорт',
+  housing: 'Жилье',
+  entertainment: 'Развлечения',
+  education: 'Образование',
+  other: 'Другое'
+};
 
 const chartCanvas = ref(null);
 let chartInstance = null;
 
 const chartData = computed(() => {
   const data = new Array(props.categories.length).fill(0);
+  
   props.expenses.forEach(({ category, amount }) => {
-    const index = props.categories.indexOf(category);
-    if (index !== -1) data[index] += amount;
+    const russianCategory = normalizedCategories[category] || 'Другое';
+    const index = props.categories.indexOf(russianCategory);
+    if (index !== -1) data[index] += Number(amount) || 0;
   });
+
+  console.log('📊 Данные для визуализации:', {
+    labels: props.categories,
+    values: data
+  });
+  
   return data;
 });
 
-const totalExpenses = computed(() => 
-  chartData.value.reduce((acc, val) => acc + val, 0)
+const formattedTotal = computed(() => {
+  const total = chartData.value.reduce((acc, val) => acc + val, 0);
+  return new Intl.NumberFormat('ru-RU').format(total);
+});
+
+
+
+const periodLabel = computed(() => 
+  `${props.startDate} — ${props.endDate}` || 'Не выбран период'
 );
-
-const periodLabel = ref(`${props.startDate} — ${props.endDate}`);
-
 
 
 const initChart = () => {
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
+  if (chartInstance) chartInstance.destroy();
 
   if (!chartCanvas.value) return;
 
@@ -62,7 +89,7 @@ const initChart = () => {
       labels: props.categories,
       datasets: [{
         label: 'Расходы по категориям',
-        data: chartData.value, // Используем вычисляемые данные
+        data: chartData.value,
         backgroundColor: [
           '#6d28d9', '#f6c177', '#4ecdc4', 
           '#ff6b6b', '#457b9d', '#e17055'
@@ -76,51 +103,19 @@ const initChart = () => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: {
-        duration: 400,
-        easing: 'easeOutQuart'
-      },
       plugins: {
-        legend: {
-          display: false
-        },
+        legend: { display: false },
         tooltip: {
           enabled: props.expenses.length > 0,
-          backgroundColor: '#2d3748',
-          titleColor: '#ffffff',
-          bodyColor: '#ffffff',
-          displayColors: false,
           callbacks: {
-            title: (items) => items[0].label || 'Категория',
-            label: (context) => `${context.parsed.y} ₽`
+            label: (context) => `${context.parsed.y.toLocaleString('ru-RU')} ₽`
           }
         }
       },
       scales: {
         y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',
-            drawTicks: false
-          },
           ticks: {
-            color: '#4a5568',
-            callback: (value) => `${value} ₽`,
-            padding: 10,
-            maxTicksLimit: 6
-          }
-        },
-        x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: '#4a5568',
-            font: {
-              weight: 500
-            },
-            maxRotation: 0,
-            autoSkip: false
+            callback: (value) => `${value.toLocaleString('ru-RU')} ₽`
           }
         }
       }
@@ -128,14 +123,18 @@ const initChart = () => {
   });
 };
 
+
 onMounted(initChart);
 
 watch([chartData, periodLabel], () => {
-  if (chartInstance) {
-    chartInstance.data.datasets[0].data = chartData.value;
-    chartInstance.update();
-  }
-});
+  if (!chartInstance) return;
+  
+  chartInstance.data.datasets[0].data = chartData.value;
+  chartInstance.options.plugins.tooltip.enabled = props.expenses.length > 0;
+  chartInstance.update();
+  
+  console.log('🔄 График обновлен с новыми данными');
+}, { deep: true });
 </script>
 
 <style lang="scss" scoped>
