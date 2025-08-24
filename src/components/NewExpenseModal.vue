@@ -73,12 +73,6 @@
 import { expensesStore } from "@/store/store";
 import { ref, defineAsyncComponent } from "vue";
 
-const fieldValidity = ref({
-  description: false,
-  date: false,
-  amount: false,
-});
-
 // Инициализация данных формы
 const formData = ref({
   description: "",
@@ -86,6 +80,7 @@ const formData = ref({
   date: "",
   amount: null,
 });
+const error = ref("");
 
 const errors = ref({
   description: false,
@@ -132,29 +127,33 @@ const categoryMapping = {
 };
 
 // Валидация формы
-const validateDescription = () => {
-  const value = formData.value.description.trim();
-  
-  if (!value || value.length < 3) {
-    errors.value.description = true;
-  } else {
-    errors.value.description = false;
-  }
-};
+
 
 const validateField = (field) => {
-  if (field === 'description') {
-    validateDescription();
-  } else if (field === 'amount') {
-    const value = formData.value.amount;
-    errors.value.amount = value <= 0 || isNaN(value);
-  } else if (field === 'date') {
-    errors.value.date = !formData.value.date;
+  switch(field) {
+    case 'description':
+      const descValue = formData.value.description.trim();
+      errors.value.description = !descValue || descValue.length < 4;
+      break;
+    
+    case 'amount':
+      const amountValue = formData.value.amount;
+      errors.value.amount = !amountValue || amountValue <= 0 || isNaN(amountValue);
+      break;
+    
+    case 'date':
+      errors.value.date = !formData.value.date;
+      break;
   }
 };
 
 const validateForm = () => {
-  return Object.values(fieldValidity.value).every((v) => v);
+  // Проверяем все поля перед отправкой
+  validateField('description');
+  validateField('amount');
+  validateField('date');
+  
+  return Object.values(errors.value).every(error => !error);
 };
 
 // Обработчик отправки формы
@@ -196,12 +195,13 @@ const resetForm = () => {
     date: "",
     amount: null,
   };
-  fieldValidity.value = {
+  
+  // Сбрасываем все ошибки
+  errors.value = {
     description: false,
     date: false,
-    amount: false,
+    amount: false
   };
-  error.value = "";
 };
 </script>
 

@@ -253,9 +253,6 @@ button[type="button"]:hover {
   margin: 15px 0 0;
 }
 
-input[required] {
-  border-left: 3px solid #6a11cb; /* Сопоставление с цветом кнопки */
-}
 
 input:focus {
   outline: 2px solid #6a11cb;

@@ -12,6 +12,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from "vue";
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import Chart from "chart.js/auto";
 
 const props = defineProps({
@@ -67,30 +68,32 @@ const periodLabel = computed(
   () => `${props.startDate} — ${props.endDate}` || "Не выбран период"
 );
 
+Chart.register(ChartDataLabels);
+
 const initChart = () => {
   if (chartInstance) chartInstance.destroy();
 
   if (!chartCanvas.value) return;
 
-  const ctx = chartCanvas.value.getContext("2d");
+  const ctx = chartCanvas.value.getContext('2d');
 
   chartInstance = new Chart(ctx, {
-    type: "bar",
+    type: 'bar',
     data: {
       labels: props.categories,
       datasets: [
         {
-          label: "Расходы по категориям",
+          label: 'Расходы по категориям',
           data: chartData.value,
           backgroundColor: [
-            "#6d28d9",
-            "#f6c177",
-            "#4ecdc4",
-            "#ff6b6b",
-            "#457b9d",
-            "#e17055",
+            '#6d28d9',
+            '#f6c177',
+            '#4ecdc4',
+            '#ff6b6b',
+            '#457b9d',
+            '#e17055',
           ],
-          borderColor: "#ffffff",
+          borderColor: '#ffffff',
           borderWidth: 2,
           borderRadius: 8,
           barPercentage: 0.7,
@@ -102,21 +105,40 @@ const initChart = () => {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          enabled: props.expenses.length > 0,
-          callbacks: {
-            label: (context) => `${context.parsed.y.toLocaleString("ru-RU")} ₽`,
-          },
-        },
+        tooltip: { enabled: false },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          formatter: (value) => value > 0 
+            ? new Intl.NumberFormat('ru-RU').format(value) + ' Р' 
+            : '',
+          font: {
+            weight: 'bold',
+            size: 12
+          }
+        }
       },
       scales: {
         y: {
-          ticks: {
-            callback: (value) => `${value.toLocaleString("ru-RU")} ₽`,
-          },
+          display: false,
+          grid: { display: false },
+          ticks: { display: false }
         },
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#4a5568',
+            font: { weight: '500' }
+          }
+        }
       },
+      layout: {
+        padding: {
+          top: 30
+        }
+      }
     },
+    plugins: [ChartDataLabels]
   });
 };
 
@@ -144,6 +166,11 @@ watch(
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px;
   width: 100%;
+
+  ::v-deep .chartjs-datalabel {
+    transform: translateY(-8px);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
 
   @media (max-width: 768px) {
     padding: 15px;
