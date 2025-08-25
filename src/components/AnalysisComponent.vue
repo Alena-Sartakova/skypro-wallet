@@ -146,9 +146,15 @@ watch(
   max-width: 1200px;
   margin: 0 auto;
   padding: 30px;
+  min-height: 100vh;
 
   @media (max-width: 768px) {
     padding: 20px 15px;
+    max-width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    padding: 15px 10px;
   }
 }
 
@@ -156,10 +162,17 @@ h1 {
   font-size: 28px;
   color: #2d3748;
   margin-bottom: 30px;
+  line-height: 1.3;
+
+  @media (max-width: 768px) {
+    font-size: 26px;
+    margin-bottom: 25px;
+  }
 
   @media (max-width: 480px) {
-    font-size: 24px;
+    font-size: 22px;
     margin-bottom: 20px;
+    text-align: center;
   }
 }
 
@@ -167,20 +180,87 @@ h1 {
   display: flex;
   gap: 30px;
   align-items: flex-start;
+  position: relative;
+
+  @media (max-width: 1024px) {
+    gap: 20px;
+  }
 
   @media (max-width: 768px) {
     flex-direction: column;
-    gap: 40px;
+    gap: 30px;
+  }
+
+  @media (max-width: 480px) {
+    gap: 25px;
   }
 }
 
-h2 {
-  font-size: 20px;
-  color: #2d3748;
-  margin-bottom: 20px;
+.period-info {
+  margin-top: 25px;
+  font-size: 16px;
+  color: #4a5568;
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: inline-block;
+
+  @media (max-width: 768px) {
+    margin-top: 20px;
+    font-size: 15px;
+    width: 100%;
+    text-align: center;
+  }
 
   @media (max-width: 480px) {
-    font-size: 18px;
+    font-size: 14px;
+    padding: 10px 15px;
+  }
+
+  .days-count {
+    color: #718096;
+    font-size: 0.9em;
+    margin-left: 8px;
+
+    @media (max-width: 480px) {
+      display: block;
+      margin-left: 0;
+      margin-top: 4px;
+    }
+  }
+}
+
+.error-status {
+  margin-top: 20px;
+  color: #e53e3e;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #fed7d7;
+  border-radius: 6px;
+  background: #fff5f5;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
+// Адаптация для компонентов внутри
+:deep(.calendar-component),
+:deep(.chart-component) {
+  flex: 1;
+  min-width: 0; // Фикс для переполнения
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+:deep(.chart-component) {
+  @media (max-width: 480px) {
+    transform: scale(0.98);
+    margin-left: -5px;
   }
 }
 </style>

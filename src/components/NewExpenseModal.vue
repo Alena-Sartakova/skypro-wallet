@@ -247,9 +247,9 @@ const resetForm = () => {
     }
 
     &.valid {
-      background: #f3ebff; // Светло-фиолетовый фон
-      border-color: #7334ea; // Темно-фиолетовая обводка
-      box-shadow: 0 0 0 1px #7334ea; // Альтернатива для четкой границы
+      background: #f3ebff; 
+      border-color: #7334ea; 
+      box-shadow: 0 0 0 1px #7334ea; 
     }
 
     // Для кастомного выделения при фокусе в валидном состоянии
@@ -289,7 +289,7 @@ const resetForm = () => {
   align-items: center;
   gap: 12px;
   height: 31px;
-  min-width: 60px; // Минимальная ширина для иконки без текста
+  min-width: 60px; 
   padding: 8px 20px;
   background: #f4f5f6;
   border-radius: 30px;
@@ -322,7 +322,7 @@ const resetForm = () => {
 }
 
 .category-icon {
-  flex-shrink: 0; // Запрещаем сжатие иконки
+  flex-shrink: 0; 
   display: flex;
   align-items: center;
   color: #333;
@@ -339,7 +339,7 @@ const resetForm = () => {
 .category-name {
   font-size: 14px;
   color: #333;
-  white-space: nowrap; // Запрет переноса текста
+  white-space: nowrap; 
   transition: color 0.2s;
 }
 

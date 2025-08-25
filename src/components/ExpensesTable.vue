@@ -98,20 +98,23 @@ const handleDeleteExpense = async (id) => {
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  overflow-x: auto; 
 
   table {
-    width: 789px;
+    width: 100%;
+    min-width: 379px;
     border-collapse: collapse;
 
     thead {
-      border-bottom: 1px solid #999999; // Граница между заголовками и данными
+      border-bottom: 1px solid #e2e8f0;
     }
 
     th,
     td {
-      padding: 14px 16px;
-      vertical-align: middle; // Вертикальное выравнивание
-      text-align: left; // Горизонтальное выравнивание
+      padding: 12px 16px;
+      vertical-align: middle;
+      text-align: left;
+      white-space: nowrap; // Запрет переноса текста
     }
 
     th {
@@ -120,7 +123,6 @@ const handleDeleteExpense = async (id) => {
       font-weight: 600;
     }
 
-    // Убираем нижнюю границу у последней строки
     tr:last-child td {
       border-bottom: none;
     }
@@ -132,25 +134,40 @@ const handleDeleteExpense = async (id) => {
   height: 20px;
   cursor: pointer;
   transition: opacity 0.3s;
-}
+  min-width: 20px; // Фиксированный размер иконки
 
-.delete-icon:hover {
-  opacity: 0.7;
+  &:hover {
+    opacity: 0.7;
+  }
 }
 
 th:last-child,
 td:last-child {
   width: 40px;
   text-align: center;
+  padding-right: 8px;
 }
 
-.category-cell {
-  color: #999999;
-  font-family: Montserrat;
-  font-weight: 400;
-  font-style: normal;
-  font-size: 12px;
-  line-height: 1;
-  letter-spacing: 0;
+// Адаптация для мобильных
+@media (max-width: 480px) {
+  .table-container {
+    padding: 12px;
+    border-radius: 8px;
+    
+    table {
+      th,
+      td {
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .delete-icon {
+    width: 24px;
+    height: 24px;
+  }
 }
 </style>
+
+
