@@ -2,7 +2,6 @@
   <div class="calendar-container">
     <h2>Выбор периода</h2>
     <div class="calendar-wrapper">
-      <!-- Фиксированные заголовки дней -->
       <div class="calendar-header">
         <div
           v-for="day in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']"
@@ -13,19 +12,17 @@
         </div>
       </div>
 
-      <!-- Прокручиваемая область -->
       <div class="calendar-scroll">
         <div
           v-for="(monthGroup, index) in groupedDates"
           :key="index"
           class="month-group"
+          :class="{ 'current-month': isCurrentMonth(monthGroup) }"
         >
-          <!-- Заголовок месяца -->
           <div class="month-header">
             {{ formatMonth(monthGroup.month, monthGroup.year) }}
           </div>
 
-          <!-- Сетка дней -->
           <div class="month-days">
             <div
               v-for="(date, di) in monthGroup.dates"
@@ -33,10 +30,9 @@
               class="day-cell"
               :class="{
                 empty: !date,
-                selected: date && isDateSelected(date),
-                'in-range': date && isDateInRange(date),
-                'single-day': isSingleDay(date), // Новый класс для одиночного дня
-                'selected-end': isDateSelected(date) && !isSingleDay(date), // Класс для конечной даты диапазона
+                selected: isDateSelected(date),
+                'in-range': isDateInRange(date),
+                'single-day': isSingleDay && isDateSelected(date),
               }"
               @click="date && selectDate(date)"
             >
@@ -50,42 +46,145 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
 
 const props = defineProps({
-  selectedStart: {
-    type: Date,
-    default: null,
-  },
-  selectedEnd: {
-    type: Date,
-    default: null,
-  },
+  selectedStart: Date,
+  selectedEnd: Date,
 });
 
-const emit = defineEmits(["date-selected"]); // Добавлен эмит событий
+const emit = defineEmits(["date-selected"]);
 
-const currentDate = new Date();
+// Локальное состояние дат
 const startDate = ref(null);
 const endDate = ref(null);
 
-// Генерация данных для 3 месяцев
+// Нормализация даты (без времени)
+const normalizeDate = (date) =>
+  date ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : null;
+
+// Основная логика выбора даты
+const selectDate = (clickedDate) => {
+  const normalized = normalizeDate(clickedDate);
+  if (!normalized) return;
+
+  // Логика выбора
+  if (!startDate.value) {
+    // Первый выбор
+    startDate.value = normalized;
+  } else if (!endDate.value) {
+    // Второй выбор
+    if (normalized.getTime() === startDate.value.getTime()) {
+      // Сброс при клике на ту же дату
+      resetSelection();
+    } else {
+      endDate.value = normalized;
+      // Сортировка если end < start
+      if (endDate.value < startDate.value) {
+        [startDate.value, endDate.value] = [endDate.value, startDate.value];
+
+        console.log("[Calendar] Dates swapped:", formatLogRange());
+      }
+      // Валидация периода
+      if (!validatePeriod(startDate.value, endDate.value)) {
+        console.warn("Некорректный период");
+        resetSelection();
+      }
+    }
+  } else {
+    // Третий выбор - сброс
+    resetSelection();
+    startDate.value = normalized;
+  }
+
+  emitSelection();
+};
+
+// Сброс выбора
+const resetSelection = () => {
+  startDate.value = null;
+  endDate.value = null;
+};
+
+// Валидация периода
+const validatePeriod = (start, end) => {
+  if (!start || !end) return true;
+  const maxPeriod = 365 * 24 * 60 * 60 * 1000; // 1 год
+  return end - start <= maxPeriod;
+};
+
+// Вспомогательные функции для логирования
+const formatLogDate = (date) =>
+  date ? date.toLocaleDateString("ru-RU") : "null";
+
+const formatLogRange = () =>
+  `${formatLogDate(startDate.value)} — ${formatLogDate(endDate.value)}`;
+
+const emitSelection = () => {
+  emit("date-selected", startDate.value, endDate.value);
+};
+
+// Состояния для стилизации
+const isSingleDay = computed(
+  () => startDate.value?.getTime() === endDate.value?.getTime()
+);
+
+const isDateSelected = (date) =>
+  date &&
+  ((startDate.value && date.getTime() === startDate.value.getTime()) ||
+    (endDate.value && date.getTime() === endDate.value.getTime()));
+
+const isDateInRange = (date) =>
+  date &&
+  startDate.value &&
+  endDate.value &&
+  date > startDate.value &&
+  date < endDate.value;
+
+// Генерация данных календаря
 const groupedDates = computed(() => {
   const result = [];
-  for (let m = 0; m < 3; m++) {
-    const monthDate = new Date();
-    monthDate.setMonth(currentDate.getMonth() + m);
+  const now = new Date();
 
+  // Начальная дата: текущий месяц - 12 месяцев
+  let current = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+
+  // Генерируем 37 месяцев (12 предыдущих + текущий + 24 следующих)
+  for (let i = 0; i < 37; i++) {
     result.push({
-      month: monthDate.getMonth(),
-      year: monthDate.getFullYear(),
-      dates: generateMonthDates(monthDate),
+      month: current.getMonth(),
+      year: current.getFullYear(),
+      dates: generateMonthDates(current),
     });
+    current.setMonth(current.getMonth() + 1);
   }
+
   return result;
 });
 
-// Генерация дней месяца с заполнением пустых ячеек
+// Проверка текущего месяца
+const isCurrentMonth = (monthGroup) => {
+  const now = new Date();
+  return (
+    monthGroup.month === now.getMonth() && monthGroup.year === now.getFullYear()
+  );
+};
+
+// Автопрокрутка к текущему месяцу
+onMounted(() => {
+  nextTick(() => {
+    const currentMonthIndex = groupedDates.value.findIndex(isCurrentMonth);
+    const monthElements = document.querySelectorAll(".month-group");
+    if (monthElements[currentMonthIndex]) {
+      monthElements[currentMonthIndex].scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
+    }
+  });
+});
+
+// Генерация дней месяца
 function generateMonthDates(monthDate) {
   const dates = [];
   const year = monthDate.getFullYear();
@@ -94,11 +193,11 @@ function generateMonthDates(monthDate) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  // Добавляем пустые ячейки для первого дня недели
-  const startDay = (firstDay.getDay() + 6) % 7; // Пн=0, Вс=6
+  // Пустые ячейки для начала недели
+  const startDay = (firstDay.getDay() + 6) % 7;
   for (let i = 0; i < startDay; i++) dates.push(null);
 
-  // Заполняем дни месяца
+  // Заполнение дней месяца
   for (let d = 1; d <= lastDay.getDate(); d++) {
     dates.push(new Date(year, month, d));
   }
@@ -114,83 +213,12 @@ const formatMonth = (monthIndex, year) => {
   return `${monthName[0].toUpperCase()}${monthName.slice(1)} ${year}`;
 };
 
-const isSingleDay = (date) => {
-  if (!date || !startDate.value || !endDate.value) return false;
-  return (
-    startDate.value.getTime() === endDate.value.getTime() &&
-    date.getTime() === startDate.value.getTime()
-  );
-};
-
-// Проверка выбранной даты
-const isDateSelected = (date) => {
-  if (!date || !startDate.value || !endDate.value) return false;
-  const dateTime = date.getTime();
-  return (
-    dateTime === startDate.value.getTime() ||
-    dateTime === endDate.value.getTime()
-  );
-};
-
-// Проверка даты в диапазоне
-const isDateInRange = (date) => {
-  if (!date || !startDate.value || !endDate.value) return false;
-  const time = date.getTime();
-  return time > startDate.value.getTime() && time < endDate.value.getTime();
-};
-
-const normalizeDate = (d) => {
-  if (!d) return null;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-};
-
-// Обработчик выбора даты
-const selectDate = (date) => {
-  try {
-    const normalize = (d) => {
-      if (!d) return null;
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    };
-
-    const normalizedDate = normalize(date);
-    if (!normalizedDate) return;
-
-    // Новая защищённая логика выбора
-    if (!startDate.value || !endDate.value) {
-      startDate.value = normalizedDate;
-      endDate.value = normalizedDate;
-    } else if (normalizedDate.getTime() === startDate.value.getTime()) {
-      startDate.value = null;
-      endDate.value = null;
-    } else if (
-      endDate.value &&
-      normalizedDate.getTime() === endDate.value.getTime()
-    ) {
-      endDate.value = null;
-    } else {
-      endDate.value = normalizedDate;
-      if (endDate.value < startDate.value) {
-        [startDate.value, endDate.value] = [endDate.value, startDate.value];
-      }
-    }
-
-    emit(
-      "date-selected",
-      startDate.value ? new Date(startDate.value) : null,
-      endDate.value ? new Date(endDate.value) : null
-    );
-  } catch (error) {
-    console.error("Date selection error:", error);
-    startDate.value = null;
-    endDate.value = null;
-  }
-};
-
+// Синхронизация с внешними пропсами
 watch(
   () => [props.selectedStart, props.selectedEnd],
   ([newStart, newEnd]) => {
-    startDate.value = newStart ? normalizeDate(newStart) : null;
-    endDate.value = newEnd ? normalizeDate(newEnd) : null;
+    startDate.value = normalizeDate(newStart);
+    endDate.value = normalizeDate(newEnd);
   },
   { immediate: true }
 );
@@ -294,6 +322,11 @@ h2 {
     font-weight: 500;
     transform: scale(1.1);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+    &[data-single="true"] {
+      background: #8b5cf6;
+      animation: pulse 1s ease-in-out infinite;
+    }
   }
 
   /* Даты в диапазоне */

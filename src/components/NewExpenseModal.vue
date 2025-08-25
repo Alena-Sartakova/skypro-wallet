@@ -2,6 +2,7 @@
   <div class="new-expense-modal">
     <h2>Новый расход</h2>
     <form @submit.prevent="handleSubmit">
+      <!-- Описание -->
       <div class="form-group">
         <label>Описание:</label>
         <input
@@ -9,9 +10,14 @@
           type="text"
           placeholder="Введите описание"
           required
+          :class="{ 
+            invalid: errors.description 
+          }"
+          @blur="validateField('description')"
         />
       </div>
 
+      <!-- Категории -->
       <div class="form-group">
         <label>Категория:</label>
         <div class="category-grid">
@@ -28,10 +34,17 @@
         </div>
       </div>
 
+      <!-- Дата и сумма -->
       <div class="form-row">
         <div class="form-group">
           <label>Дата:</label>
-          <input v-model="formData.date" type="date" required />
+          <input
+            v-model="formData.date"
+            type="date"
+            required
+            :class="{ invalid: errors.date }"
+            @blur="validateField('date')"
+          />
         </div>
 
         <div class="form-group">
@@ -39,23 +52,26 @@
           <input
             v-model.number="formData.amount"
             type="number"
-            placeholder="0"
             min="1"
-            step="1"
+            placeholder="0"
             required
+            :class="{ invalid: errors.amount }"
+            @blur="validateField('amount')"
           />
         </div>
       </div>
 
+      <!-- Сообщение об ошибке -->
+      <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" class="submit-button">Добавить расход</button>
     </form>
   </div>
 </template>
 
-<script setup>
-import { ref, defineAsyncComponent } from "vue";
 
-const emit = defineEmits(["submit"]);
+<script setup>
+import { expensesStore } from "@/store/store";
+import { ref, defineAsyncComponent } from "vue";
 
 // Инициализация данных формы
 const formData = ref({
@@ -64,16 +80,24 @@ const formData = ref({
   date: "",
   amount: null,
 });
+const error = ref("");
+
+const errors = ref({
+  description: false,
+  date: false,
+  amount: false
+});
+
 
 // Список категорий с иконками
 const categories = [
   {
     name: "Еда",
-    icon: defineAsyncComponent(() => import("@/assets/icons/meal.svg")),
+    icon: defineAsyncComponent(() => import("@/assets/icons/bag.svg")),
   },
   {
     name: "Транспорт",
-    icon: defineAsyncComponent(() => import("@/assets/icons/transport.svg")),
+    icon: defineAsyncComponent(() => import("@/assets/icons/car.svg")),
   },
   {
     name: "Жилье",
@@ -81,40 +105,86 @@ const categories = [
   },
   {
     name: "Развлечения",
-    icon: defineAsyncComponent(() =>
-      import("@/assets/icons/entertainment.svg")
-    ),
+    icon: defineAsyncComponent(() => import("@/assets/icons/gameboy.svg")),
   },
   {
     name: "Образование",
-    icon: defineAsyncComponent(() => import("@/assets/icons/education.svg")),
+    icon: defineAsyncComponent(() => import("@/assets/icons/teacher.svg")),
   },
   {
     name: "Другое",
-    icon: defineAsyncComponent(() => import("@/assets/icons/other.svg")),
+    icon: defineAsyncComponent(() => import("@/assets/icons/message-text.svg")),
   },
 ];
 
+const categoryMapping = {
+  Еда: "food",
+  Транспорт: "transport",
+  Жилье: "housing",
+  Развлечения: "joy",
+  Образование: "education",
+  Другое: "others",
+};
+
 // Валидация формы
+
+
+const validateField = (field) => {
+  switch(field) {
+    case 'description':
+      const descValue = formData.value.description.trim();
+      errors.value.description = !descValue || descValue.length < 4;
+      break;
+    
+    case 'amount':
+      const amountValue = formData.value.amount;
+      errors.value.amount = !amountValue || amountValue <= 0 || isNaN(amountValue);
+      break;
+    
+    case 'date':
+      errors.value.date = !formData.value.date;
+      break;
+  }
+};
+
 const validateForm = () => {
-  return (
-    formData.value.description.trim() &&
-    formData.value.date &&
-    formData.value.amount > 0
-  );
+  // Проверяем все поля перед отправкой
+  validateField('description');
+  validateField('amount');
+  validateField('date');
+  
+  return Object.values(errors.value).every(error => !error);
 };
 
 // Обработчик отправки формы
-const handleSubmit = () => {
-  if (!validateForm()) return;
+const handleSubmit = async () => {
+  try {
+    if (!validateForm()) {
+      error.value = "Пожалуйста, заполните все обязательные поля корректно";
+      return;
+    }
 
-  const payload = {
-    ...formData.value,
-    amount: Number(formData.value.amount),
-  };
+    try {
+      await expensesStore.addExpense({
+        description: formData.value.description.trim(),
+        category: categoryMapping[formData.value.category],
+        date: formData.value.date,
+        sum: formData.value.amount,
+      });
 
-  emit("submit", payload);
-  resetForm();
+      resetForm();
+      error.value = "";
+      alert("Расход успешно добавлен!");
+    } catch (err) {
+      if (err.response && err.response.data) {
+        error.value = err.response.data.message || "Произошла ошибка";
+      } else {
+        error.value = err.message || "Произошла ошибка при сохранении расхода";
+      }
+    }
+  } catch {
+    error.value = "Ошибка авторизации";
+  }
 };
 
 // Сброс формы
@@ -124,6 +194,13 @@ const resetForm = () => {
     category: "Еда",
     date: "",
     amount: null,
+  };
+  
+  // Сбрасываем все ошибки
+  errors.value = {
+    description: false,
+    date: false,
+    amount: false
   };
 };
 </script>
@@ -135,7 +212,7 @@ const resetForm = () => {
   padding: 24px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   max-width: 500px;
-  width: 100%;
+  width: 379px;
 
   h2 {
     font-size: 24px;
@@ -168,55 +245,88 @@ const resetForm = () => {
       outline: none;
       box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
     }
+
+    &.valid {
+      background: #f3ebff; // Светло-фиолетовый фон
+      border-color: #7334ea; // Темно-фиолетовая обводка
+      box-shadow: 0 0 0 1px #7334ea; // Альтернатива для четкой границы
+    }
+
+    // Для кастомного выделения при фокусе в валидном состоянии
+    &.valid:focus {
+      border-color: #7334ea;
+      box-shadow: 0 0 0 2px rgba(115, 52, 234, 0.2);
+    }
   }
+  input.invalid {
+    border-color: #dc2626;
+    background: #fef2f2;
+    animation: shake 0.4s ease-in-out;
+
+    &:focus {
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+    }
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
 }
 
 .category-grid {
   display: flex;
-  flex-wrap: wrap; 
-  gap: 12px; 
-  justify-content: flex-start; 
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-start;
 }
 
 .category-card {
   position: relative;
   display: inline-flex;
-  padding: 8px;
-  border-radius: 8px;
+  align-items: center;
+  gap: 12px;
+  height: 31px;
+  min-width: 60px; // Минимальная ширина для иконки без текста
+  padding: 8px 20px;
+  background: #f4f5f6;
+  border-radius: 30px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 2px solid transparent;
-  margin-right: 12px; 
-  margin-bottom: 12px; 
-  height: auto;
-  &:hover {
-    border-radius: 15px;
-    background: #f1f3f5;
-    transform: none;
+  box-sizing: border-box;
 
-    .category-name {
-      opacity: 1;
-      transform: translateY(0);
+  // Граница только для активного состояния
+  border: 1px solid transparent;
+
+  &:hover {
+    .category-icon {
+      color: #7334ea;
     }
   }
 
   &.active {
-    border-radius: 45px;
-    background: transparent; 
-    border-color: #7334ea; 
     background: rgba(115, 52, 234, 0.1);
-    box-shadow: none;
+    border-color: #7334ea;
 
-    .category-icon {
-      color: #7334ea;
+    .category-icon,
+    .category-name {
+      color: #7334ea !important;
+    }
+
+    :deep(svg) {
+      fill: currentColor !important;
     }
   }
 }
 
 .category-icon {
+  flex-shrink: 0; // Запрещаем сжатие иконки
   display: flex;
   align-items: center;
-  justify-content: center;
+  color: #333;
+  transition: color 0.2s;
 
   :deep(svg) {
     width: 1.5em;
@@ -227,35 +337,28 @@ const resetForm = () => {
 }
 
 .category-name {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  border-radius: 4px;
-  font-size: 0.8em;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.2s;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap; // Запрет переноса текста
+  transition: color 0.2s;
 }
 
-
-
+.category-card:hover,
 .category-card.active {
-  box-shadow: 0 0 4px rgba(115, 52, 234, 0.5); 
+  border-color: transparent;
+
+  box-shadow: none;
+  transform: none;
 }
 
 .form-row {
-  display: block; 
+  display: block;
 }
 
 .submit-button {
   width: 100%;
   padding: 10px 20px;
-  background: #7334ea; 
+  background: #7334ea;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -263,13 +366,7 @@ const resetForm = () => {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
-
-  &:hover,
-  &:active {
-    background: darken(#7334ea, 15%); 
-  }
 }
-
 
 input,
 .category-card,

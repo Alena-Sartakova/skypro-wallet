@@ -1,31 +1,72 @@
 <template>
   <div class="login-container">
-    <form @submit.prevent="props.isSignUp ? register() : login()">
-      <h2>{{ props.isSignUp ? "Регистрация" : "Вход" }}</h2>
+    <form @submit.prevent="handleSubmit">
+      <h2>{{ isSignUp ? 'Регистрация' : 'Вход' }}</h2>
 
-      <input v-if="props.isSignUp" v-model="name" placeholder="Имя" required />
+      <!-- Поле имени только для регистрации -->
+      <input 
+        v-if="isSignUp" 
+        v-model="name" 
+        placeholder="Имя" 
+        required
+        autocomplete="name"
+      />
 
-      <input v-model="username" placeholder="Логин" required />
+      <!-- **Замена email на логин** -->
+      <input 
+        v-model="login" 
+        placeholder="Логин" 
+        required
+        autocomplete="username"
+      />
 
-      <input type="password" v-model="password" placeholder="Пароль" required />
+      <!-- Поле пароля -->
+      <input 
+        type="password" 
+        v-model="password" 
+        :placeholder="isSignUp ? 'Придумайте пароль' : 'Пароль'"
+        required
+        :autocomplete="isSignUp ? 'new-password' : 'current-password'"
+      />
 
-      <button type="submit">
-        {{ props.isSignUp ? "Зарегистрироваться" : "Войти" }}
+      <!-- Кнопка отправки -->
+      <button 
+        type="submit" 
+        :disabled="authStore.state.value.isLoading"
+      >
+        {{ isSignUp ? 'Зарегистрироваться' : 'Войти' }}
+        <span v-if="authStore.state.value.isLoading">...</span>
       </button>
 
+      <!-- Отображение ошибок -->
       <div class="form-footer">
-        <p v-if="error" class="error">{{ error }}</p>
+        <p 
+          v-if="authStore.state.value.error" 
+          class="error"
+        >
+          {{ formattedError }}
+        </p>
       </div>
+
+      <!-- Ссылки для переключения -->
       <div v-show="!isSignUp" class="modal__form-group">
         <p>Нужно зарегистрироваться?</p>
-        <RouterLink to="/signup" class="modal__link">
+        <RouterLink 
+          to="/signup" 
+          class="modal__link"
+          @click="resetForm"
+        >
           Регистрируйтесь здесь
         </RouterLink>
       </div>
 
       <div v-show="isSignUp" class="modal__form-group">
         <p>Уже есть аккаунт?</p>
-        <RouterLink to="/signin" class="modal__link">
+        <RouterLink 
+          to="/signin" 
+          class="modal__link"
+          @click="resetForm"
+        >
           Войдите здесь
         </RouterLink>
       </div>
@@ -34,46 +75,76 @@
 </template>
 
 <script setup>
-import { ref, defineProps } from "vue";
-import { RouterLink } from "vue-router";
+import { authStore } from '@/store/authStore'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const props = defineProps({
   isSignUp: {
     type: Boolean,
-    required: true, // Обязательный пропс без значения по умолчанию
-  },
-});
-
-const name = ref("");
-const username = ref("");
-const password = ref("");
-const error = ref("");
-
-const login = () => {
-  error.value = "";
-  if (!username.value || !password.value) {
-    error.value = "Пожалуйста, заполните все поля";
-    return;
+    required: true
   }
-  console.log("Логин:", username.value, "Пароль:", password.value);
+})
+
+// **Обновлённые переменные**
+const name = ref('')
+const login = ref('') // Заменено email на login
+const password = ref('')
+
+const handleSubmit = async () => {
+  try {
+    const credentials = {
+      login: login.value.trim(),
+      password: password.value,
+      ...(props.isSignUp && { name: name.value.trim() })
+    };
+
+    try {
+      const { success } = props.isSignUp 
+        ? await authStore.register(credentials)
+        : await authStore.login(credentials);
+
+      if (success) {
+        // Добавляем задержку для обновления состояния
+        await new Promise(resolve => setTimeout(resolve, 100));
+        router.push('/expenses');
+        resetForm();
+      }
+    } catch (error) {
+      authStore.state.value.error = {
+        messages: [error.message || 'Произошла ошибка']
+      };
+      password.value = '';
+    }
+  } catch (err) {
+    console.error('Ошибка при отправке:', err);
+    authStore.state.value.error = {
+      messages: ['Произошла ошибка при обработке запроса']
+    };
+  }
 };
 
-const register = () => {
-  error.value = "";
-  if (!name.value || !username.value || !password.value) {
-    error.value = "Пожалуйста, заполните все поля";
-    return;
-  }
-  console.log(
-    "Имя:",
-    name.value,
-    "Логин:",
-    username.value,
-    "Пароль:",
-    password.value
-  );
-};
+const resetForm = () => {
+  name.value = ''
+  login.value = '' // Сброс login вместо email
+  password.value = ''
+}
+
+const formattedError = computed(() => {
+  if (!authStore.state.value.error?.messages) return ''
+  
+  // **Оптимизированная обработка сообщений**
+  return authStore.state.value.error.messages
+    .flatMap(msg => {
+      if (typeof msg === 'string') return msg.split('\n')
+      return String(msg)
+    })
+    .filter(msg => msg.trim())
+    .join('<br>')
+})
 </script>
+
 
 <style lang="scss" scoped>
 .login-container {
@@ -94,7 +165,7 @@ form {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   background: white;
   box-sizing: border-box;
-  
+
   h2 {
     text-align: center;
     margin-bottom: 30px;
@@ -120,7 +191,7 @@ button {
   color: white;
   border: none;
   margin-bottom: 20px;
-  
+
   &:hover {
     background-color: #4a008f;
   }
@@ -182,9 +253,6 @@ button[type="button"]:hover {
   margin: 15px 0 0;
 }
 
-input[required] {
-  border-left: 3px solid #6a11cb; /* Сопоставление с цветом кнопки */
-}
 
 input:focus {
   outline: 2px solid #6a11cb;
@@ -226,7 +294,7 @@ input:focus {
   color: #6a11cb;
   text-decoration: none;
   transition: color 0.3s;
-  
+
   &:hover {
     text-decoration: underline;
     color: #4a008f;

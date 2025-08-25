@@ -5,15 +5,17 @@ import ExpensesPage from '@/views/ExpensesPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
 import SignInPage from '@/views/SignInPage.vue'
 import SignUpPage from '@/views/SignUpPage.vue'
+import { authStore } from '@/store/authStore'
 
 const routes = [
   {
     path: '/',
     component: AppLayout,
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: '/analysis'
+        redirect: '/expenses'
       },
       {
         path: '/analysis',
@@ -30,12 +32,14 @@ const routes = [
   {
     path: '/signin',
     name: 'SignIn',
-    component: SignInPage
+    component: SignInPage,
+    meta: { guestOnly: true }
   },
   {
     path: '/signup',
     name: 'SignUp',
-    component: SignUpPage
+    component: SignUpPage,
+    meta: { guestOnly: true }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -49,4 +53,40 @@ const router = createRouter({
   routes
 })
 
+router.beforeEach(async (to) => {
+  try {
+    await authStore.init();
+
+    const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+    const guestOnly = to.matched.some(record => record.meta.guestOnly);
+
+    // Проверка авторизации через хранилище
+    const isAuthenticated = authStore.isAuthenticated();
+
+    // Для защищенных маршрутов
+    if (requiresAuth) {
+      if (!isAuthenticated) {
+        return { 
+          path: '/signin', 
+          query: { redirect: to.fullPath } 
+        };
+      }
+      return true;
+    }
+
+    // Для гостевых маршрутов
+    if (guestOnly && isAuthenticated) {
+      return { path: '/' };
+    }
+
+    return true;
+
+  } catch (error) {
+    console.error('Routing error:', error);
+    authStore.logout();
+    return { path: '/signin' };
+  }
+});
+
 export default router
+
